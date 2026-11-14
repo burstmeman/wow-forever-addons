@@ -31,6 +31,10 @@ function methods:SetFrameLevel(level) self.frameLevel = level end
 function methods:GetFrameLevel() return self.frameLevel or (self.parent and self.parent:GetFrameLevel() + 1) or 0 end
 function methods:SetFrameStrata(strata) self.frameStrata = strata end
 function methods:GetFrameStrata() return self.frameStrata or (self.parent and self.parent:GetFrameStrata()) or "MEDIUM" end
+function methods:SetFixedFrameStrata(fixed) self.fixedStrata = fixed end
+function methods:HasFixedFrameStrata() return self.fixedStrata == true end
+function methods:SetFixedFrameLevel(fixed) self.fixedLevel = fixed end
+function methods:HasFixedFrameLevel() return self.fixedLevel == true end
 function methods:EnableMouse(enabled) self.mouseEnabled = enabled end
 function methods:IsMouseEnabled() return self.mouseEnabled == true or (self.mouseEnabled == nil and self.kind == "Button") end
 function methods:GetEffectiveScale() return self.scale or 1 end
@@ -63,7 +67,8 @@ function methods:GetVerticalScroll() return self.scroll or 0 end
 function methods:SetScrollChild(child) self.child = child end
 
 function CreateFrame(kind, name, parent)
-    local frame = setmetatable({ kind = kind, name = name, parent = parent, points = {},
+    -- Do not assume that new or reparented frames dynamically inherit strata.
+    local frame = setmetatable({ kind = kind, name = name, parent = parent, points = {}, frameStrata = "MEDIUM",
         scripts = {}, events = {}, shown = true, width = 100, height = 100 }, { __index = methods })
     frames[#frames + 1] = frame
     if name then _G[name] = frame end
