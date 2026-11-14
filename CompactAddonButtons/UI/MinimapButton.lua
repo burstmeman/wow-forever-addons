@@ -1,4 +1,4 @@
-local _, ns = ...
+local addonName, ns = ...
 local MinimapButton = {}
 ns.MinimapButton = MinimapButton
 local T, max = ns.Localization.Text, math.max
@@ -53,10 +53,10 @@ function MinimapButton.Create()
     background:SetSize(24, 24)
     background:SetPoint("CENTER")
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10_Black")
+    icon:SetTexture("Interface\\AddOns\\" .. addonName .. "\\Media\\Icon")
     icon:SetSize(20, 20)
     icon:SetPoint("CENTER")
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    icon:SetTexCoord(0, 1, 0, 1)
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     border:SetSize(54, 54)
