@@ -32,6 +32,13 @@ CI run before merging. Repository settings must permit Actions to create PRs:
 create and approve pull requests**. The automation creates PRs but never approves
 or merges them. No additional personal access token is required.
 
+If PR creation returns HTTP 403, the workflow may already have created its release
+branch. Enable the setting above and start a **new** Next addon version run from
+`main` with the same addon, bump, and notes. It validates and reuses the original
+branch without rewriting it or bumping again. Re-running an old failed job uses
+that job's older script revision, so prefer a new workflow run after updating the
+automation. Modified branches or cancelled release PRs are never resumed silently.
+
 Automatic increments accept stable `major.minor.patch` versions. For prerelease
 suffixes or a custom version, use the manual version/tag process below. Repeating
 the same selection while its release PR is open returns the existing PR.
