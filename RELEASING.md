@@ -159,8 +159,8 @@ This deliberately trades automatic retry for avoiding duplicate public uploads.
 Do not delete success receipts to force a release; publish a new version instead.
 If only the final GitHub publication failed, rerun the workflow: the existing
 success receipt prevents a second CurseForge upload and the draft is published.
-HTTP failures identify the API host/path and include JSON error details with
-deployment credentials redacted.
+HTTP failures identify the API host/path and status. Remote response bodies are
+never printed, because they could echo secrets or encoded credentials.
 
 Existing GitHub ZIP assets must have the same SHA-256 digest; they are never silently
 overwritten. A moved tag, altered artifact, version mismatch, missing token,
@@ -170,3 +170,42 @@ An accepted upload returns a CurseForge file ID. CurseForge moderation/approval 
 still be pending; successful upload is not a guarantee of immediate public visibility.
 The upload code uses the documented [Upload API](https://support.curseforge.com/support/solutions/articles/9000197321-curseforge-upload-api),
 not the read-oriented [Get Files API](https://docs.curseforge.com/rest-api/).
+
+## Release security boundaries
+
+The build job has read-only repository permissions and no CurseForge secret. It
+runs addon tests and creates an archive from the configured runtime allowlist.
+Publication uses a separate runner, downloads only that run's artifact by ID, and
+executes deployment scripts checked out from `main`. The ZIP is uploaded as data;
+addon code from it is never executed in the job that receives deployment secrets.
+Manual publication must run from `main`.
+
+Only the final upload step receives `CURSE_FORGE_DEPLOYMENT_TOKEN` and its GitHub
+token as environment variables. Credentials are never command-line arguments or
+URL parameters. Authenticated API requests require HTTPS, an exact approved host
+for the credential header, and no redirects. Artifact metadata must use the exact
+known schema and match the workflow's requested tag before any API request; no
+extra artifact fields are copied into public upload receipts.
+
+Privileged release jobs install only PyYAML from `deployment-requirements.txt`,
+using a SHA-256-verified binary wheel. This lock targets CPython 3.12 on Linux
+x86_64, matching the release runners. When updating it, obtain the wheel digest
+from PyPI and validate with `pip download --require-hashes --only-binary=:all:` on
+the target platform. Full CI audit/test dependencies remain in `requirements.txt`.
+GitHub actions are pinned to full commit SHAs and checkout does not retain Git
+credentials. Regression tests enforce these workflow boundaries.
+
+A review on 2026-11-14 covered nine executed jobs across the available release and
+version-request runs, plus the public 1.2.10 ZIP and receipt. Token environment
+values in those logs were masked; no recognizable unmasked GitHub/AWS/private-key
+credential patterns were found. The ZIP contained 19 runtime/license files and
+the receipt contained only release identifiers, hashes and the CurseForge file ID.
+This review is scoped to those logs/assets and does not prove that every possible
+secret is absent from all repository history or private artifacts.
+
+Maintainers who can change `main` or workflow definitions remain trusted. Script
+checks do not replace repository access control. For stronger deployment policy,
+configure a protected GitHub Environment with restricted deployment refs and
+store the CurseForge token there; this requires repository settings and moving
+the secret, and is not enabled automatically by these workflows. Revoke tokens
+shared outside the Actions secret store when the diagnostic session is finished.
