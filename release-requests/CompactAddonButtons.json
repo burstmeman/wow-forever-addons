@@ -1,9 +1,9 @@
 {
   "addon": "CompactAddonButtons",
-  "previous_version": "1.2.8",
-  "version": "1.2.9",
+  "previous_version": "1.2.9",
+  "version": "1.2.10",
   "bump": "patch",
-  "tag": "CompactAddonButtons/v1.2.9",
-  "base_sha": "bb7a07fbb601c9a0837976dc33b3e92150f160fd",
+  "tag": "CompactAddonButtons/v1.2.10",
+  "base_sha": "3ebc06e03f1fb7dd1a44af734d1d1b63e14268f4",
   "notes": ""
 }
