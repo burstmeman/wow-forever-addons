@@ -9,11 +9,12 @@ if runtime.is_dir():
 try:
     from lupa.lua51 import LuaRuntime
 except ImportError:
-    sys.exit("Lua 5.1 runtime missing. Install lupa==2.6 with Python 3.12.")
+    sys.exit("Lua 5.1 runtime missing. Install lupa==2.8 with Python 3.12.")
 
 LOCALES = ("enUS", "ruRU", "esES", "esMX", "deDE", "frFR", "enGB", "koKR")
 for locale, legacy in ((locale, legacy) for locale in LOCALES for legacy in (False, True)):
-    lua = LuaRuntime(unpack_returned_tuples=True)
+    lua = LuaRuntime(unpack_returned_tuples=True, register_eval=False, register_builtins=False)
+    lua.execute("assert(python.eval == nil and python.builtins == nil)")
     lua.globals().ADDON_PATH = ROOT.joinpath("CompactAddonButtons").as_posix()
     lua.globals().TEST_LOCALE = locale
     lua.globals().TEST_LEGACY = legacy
