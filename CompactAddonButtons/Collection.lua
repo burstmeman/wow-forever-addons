@@ -5,6 +5,7 @@ local unpack = unpack or table.unpack
 
 local function snapshot(button)
     local saved = { parent = button:GetParent(), points = {},
+        strata = button:GetFrameStrata(), level = button:GetFrameLevel(),
         dragStart = button:GetScript("OnDragStart"), dragStop = button:GetScript("OnDragStop") }
     for i = 1, button:GetNumPoints() do saved.points[i] = { button:GetPoint(i) } end
     return saved
@@ -29,6 +30,9 @@ function Collection.Release(entry)
     entry.changing, entry.collected = true, false
     local button, saved = entry.button, entry.original
     button:SetParent(saved.parent)
+    -- Reparenting can change stacking order; restore it after the original parent.
+    button:SetFrameStrata(saved.strata)
+    button:SetFrameLevel(saved.level)
     button:ClearAllPoints()
     for _, point in ipairs(saved.points) do button:SetPoint(unpack(point)) end
     button:SetScript("OnDragStart", saved.dragStart)

@@ -1,8 +1,8 @@
 local combat, frames = false, {}
 local methods = {}
 local function noop() end
-for _, method in ipairs({ "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor", "SetFrameStrata",
-    "SetClampedToScreen", "SetMovable", "EnableMouse", "RegisterForDrag", "SetFrameLevel",
+for _, method in ipairs({ "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor",
+    "SetClampedToScreen", "SetMovable", "EnableMouse", "RegisterForDrag",
     "RegisterForClicks", "SetHighlightTexture", "SetTexture", "SetTexCoord", "SetJustifyH",
     "SetHitRectInsets", "SetTextColor", "SetAutoFocus", "SetMaxLetters", "SetOwner", "AddLine",
     "StartMoving", "StopMovingOrSizing" }) do methods[method] = noop end
@@ -27,7 +27,10 @@ function methods:SetWidth(w) self.width = w end
 function methods:SetHeight(h) self.height = h end
 function methods:GetWidth() return self.width end
 function methods:GetHeight() return self.height end
-function methods:GetFrameLevel() return 1 end
+function methods:SetFrameLevel(level) self.frameLevel = level end
+function methods:GetFrameLevel() return self.frameLevel or (self.parent and self.parent:GetFrameLevel() + 1) or 0 end
+function methods:SetFrameStrata(strata) self.frameStrata = strata end
+function methods:GetFrameStrata() return self.frameStrata or (self.parent and self.parent:GetFrameStrata()) or "MEDIUM" end
 function methods:GetEffectiveScale() return self.scale or 1 end
 function methods:GetCenter() return self.centerX or 200, self.centerY or 200 end
 function methods:GetNormalTexture() return self.texture end

@@ -15,5 +15,6 @@ ns.Localization.Register("esES", "Español", {
     SCAN = "Actualizar",
     LOCKED = "No se puede abrir la ventana durante el combate.",
     LANGUAGE = "Idioma",
+    BUTTONS_PER_ROW = "Botones por fila",
     AUTO_LANGUAGE = "Automático (idioma del cliente)",
 }, { "esMX" })

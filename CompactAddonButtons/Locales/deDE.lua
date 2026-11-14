@@ -15,5 +15,6 @@ ns.Localization.Register("deDE", "Deutsch", {
     SCAN = "Aktualisieren",
     LOCKED = "Das Fenster kann im Kampf nicht geöffnet werden.",
     LANGUAGE = "Sprache",
+    BUTTONS_PER_ROW = "Buttons pro Zeile",
     AUTO_LANGUAGE = "Automatisch (Client-Sprache)",
 })

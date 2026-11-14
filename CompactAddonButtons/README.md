@@ -4,7 +4,7 @@
 
 A standalone minimap button drawer for **World of Warcraft: Forever**, Interface **16001**. No required libraries or other addons.
 
-Version **1.2.1**.
+Version **1.2.6**.
 
 ## Installation
 
@@ -22,6 +22,7 @@ The `tests` directory and this README are development files and may be omitted w
 | Drag the settings header | Move the settings window |
 | Check a button in Exceptions | Keep that button on the minimap |
 | Language dropdown in settings | Choose automatic detection or a specific interface language |
+| Buttons per row dropdown in settings | Choose 1–12 columns (default: 6); saved per account |
 | Search in settings | Filter the exceptions list by button name |
 | Refresh in settings | Immediately discover newly created buttons |
 | Escape or left-click the addon button again | Close the popup |
@@ -29,7 +30,7 @@ The `tests` directory and this README are development files and may be omitted w
 | `/cab settings` | Toggle the exceptions list |
 | `/cab refresh` | Rescan buttons |
 
-The popup contains only addon icons and fits its size to the number of visible buttons: up to five columns and six rows, with scrolling for larger collections. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently.
+The popup contains only addon icons in a tight grid with a lightly translucent background and fits its size to the number of visible buttons: a configurable 1–12 columns (six by default) and as many rows as needed. The icon grid has no scrolling or scrollbar. Right-click the launcher and choose **Buttons per row** to change the grid without reloading. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently. Only the settings list scrolls.
 
 Settings, language preference, exceptions, and settings-window/minimap positions are saved per account. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
 
@@ -84,7 +85,7 @@ Modules are plain Lua tables with explicit responsibilities; there is no framewo
 
 ## How collection works
 
-The drawer reparents the original button into a grid cell. Left-click, right-click, hover tooltips, and other original button scripts continue to belong to the source addon. Drag scripts are temporarily disabled inside the drawer and restored when a button becomes an exception. Original parent and all anchor points are restored too. Buttons are not resized, and buttons hidden by their source addon are never forcibly shown.
+The drawer reparents the original button into a grid cell. Left-click, right-click, hover tooltips, and other original button scripts continue to belong to the source addon. Drag scripts are temporarily disabled inside the drawer and restored when a button becomes an exception. Original parent, frame strata, frame level, and all anchor points are restored too, so excluded buttons regain their minimap stacking order immediately. Buttons are not resized, and buttons hidden by their source addon are never forcibly shown.
 
 Discovery uses an already loaded `LibDBIcon-1.0` when available, then searches the minimap and minimap backdrop for named addon icon buttons, including nested minimap buttons. A two-second scan catches delayed creation and load-on-demand addons. Names from LibDBIcon are used as stable exception identities. An exception discovered before LibDBIcon loads is migrated to its library identity when possible.
 
@@ -125,5 +126,5 @@ These tests do not replace a live Forever client check. Visual layout, real thir
 4. Toggle exceptions, move the settings window/launcher, reload, and check persistence. Check that the icon popup still opens beside the launcher rather than at the saved settings position.
 5. Test a source addon's own show/hide setting and a load-on-demand button.
 6. Enter and leave combat with the drawer open; check for Lua errors, blocked actions, and taint.
-7. Check scrolling with more than 30 buttons, an empty popup, Russian text, custom minimap shapes, launchers near each screen edge, and the client's UI scale.
+7. Check that the icon grid expands without scrolling with more than 36 buttons and different column counts. Check settings-list scrolling, an empty popup, Russian text, custom minimap shapes, launchers near each screen edge, and the client's UI scale.
 8. Select each language in the native dropdown, check translated labels/tooltips for clipping, reload, and verify that the choice persists. Switch back to automatic detection.

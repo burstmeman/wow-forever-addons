@@ -82,6 +82,12 @@ function App.SetLanguage(locale)
     return true
 end
 
+function App.SetColumns(value)
+    if not ns.Settings.SetColumns(value) then return false end
+    App.Apply()
+    return true
+end
+
 function App.RegisterButton(key, label, button)
     local buttonType = type(button)
     if type(key) ~= "string" or key == "" or (buttonType ~= "table" and buttonType ~= "userdata")
