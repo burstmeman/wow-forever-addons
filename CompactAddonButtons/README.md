@@ -34,7 +34,9 @@ The popup contains only addon icons in a tight grid with a lightly translucent b
 
 Settings, language preference, exceptions, and settings-window/minimap positions are saved per account. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
 
-The minimap launcher and the in-game addon list share `Media/Icon.tga`: an uncompressed 64 x 64, 24-bit RGB texture (12,332 bytes). `icon.png` is a 128 x 128 preview for this page; the game does not load it. Both are resized from the supplied artwork without changing its composition.
+The minimap launcher uses `Media/MinimapIcon.tga`: four gold-framed buttons in a compact 2 x 2 grid, simplified for the small launcher. The uncompressed 64 x 64, 32-bit RGBA texture preserves transparent corners and gaps (16,428 bytes). The in-game addon list uses `Media/Icon.tga`, the original uncompressed 64 x 64, 24-bit RGB artwork (12,332 bytes). `icon.png` and `minimap-icon.png` are 128 x 128 documentation previews; the game does not load them.
+
+![Minimap launcher icon](minimap-icon.png)
 
 ## Languages
 
