@@ -1,0 +1,89 @@
+name: Next addon version
+
+on:
+  workflow_dispatch:
+    inputs:
+      addon:
+        description: Addon to release
+        required: true
+        type: choice
+        options:
+        # BEGIN ADDON CHOICES
+          - CompactAddonButtons
+        # END ADDON CHOICES
+      bump:
+        description: Version increment
+        required: true
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+      notes:
+        description: Optional release notes
+        required: false
+        type: string
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: next-release-${{ inputs.addon || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  request:
+    name: Prepare version bump PR
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: >-
+          python -m pip install --only-binary=:all: -r .github/ci/requirements.txt
+      - name: Create release request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ADDON_INPUT: ${{ inputs.addon }}
+          BUMP_INPUT: ${{ inputs.bump }}
+          NOTES_INPUT: ${{ inputs.notes }}
+        run: python .github/ci/next_release.py request
+
+  finalize:
+    name: Tag merged release PR
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'github-actions[bot]' &&
+      startsWith(github.event.pull_request.head.ref, 'codex/release-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: >-
+          python -m pip install --only-binary=:all: -r .github/ci/requirements.txt
+      - name: Validate merged request and dispatch publication
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python .github/ci/next_release.py finalize

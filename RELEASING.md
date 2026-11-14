@@ -12,6 +12,41 @@ addon; other addons are neither tested nor uploaded by the release workflow.
 Tag versions must exactly match the selected manifest. Tags must point to commits
 already merged into `main`. Do not move or reuse release tags.
 
+## Choose the next version in Actions
+
+Open **Actions → Next addon version → Run workflow** on `main`:
+
+1. Select the addon from the dropdown.
+2. Select `patch`, `minor`, or `major` (default: `patch`). From 1.2.8 these yield
+   1.2.9, 1.3.0, and 2.0.0 respectively. Optional release notes become the changelog.
+3. Run the workflow. It creates a PR that updates only the selected manifest's
+   version, the README's matching version label if present, and a release request
+   under `release-requests/`. It does not publish or change the game installation.
+4. Review and merge that PR after CI passes. A second job checks that the bot PR
+   contains exactly the generated files, creates the addon tag at its merge commit,
+   creates a GitHub Release, and explicitly dispatches **Release addon** to publish.
+
+If GitHub asks to **Approve workflows to run** on the generated PR, approve that
+CI run before merging. Repository settings must permit Actions to create PRs:
+**Settings → Actions → General → Workflow permissions → Allow GitHub Actions to
+create and approve pull requests**. The automation creates PRs but never approves
+or merges them. No additional personal access token is required.
+
+Automatic increments accept stable `major.minor.patch` versions. For prerelease
+suffixes or a custom version, use the manual version/tag process below. Repeating
+the same selection while its release PR is open returns the existing PR.
+
+GitHub's `choice` options are static YAML, so the list is generated from
+`addons.yml`, not fetched dynamically by the web UI. The registration command
+updates the choices automatically; after manually editing the registry, run:
+
+```sh
+python .github/ci/next_release.py sync
+```
+
+CI rejects a stale dropdown. Addons without release configuration can appear in
+the registry list but cannot create a release request until configured.
+
 ## Configuration
 
 The addon's `release` entry in `addons.yml` declares the package file allowlist,
@@ -75,11 +110,16 @@ already selects alpha. The manifest must contain the same suffix as the tag.
 
 ## Preview without publication
 
-Run **Release addon** manually with a prospective tag matching the version in
+Run **Release addon** manually with **publish unchecked** and a prospective tag matching the version in
 `main`, such as `CompactAddonButtons/v1.2.8`. The tag does not need to exist:
-`workflow_dispatch` checks out `main`, validates, tests, and builds, and **never
-publishes** or receives the CurseForge secret. Download the resulting
+this mode checks out `main`, validates, tests, and builds, and **never publishes**
+or receives the CurseForge secret. Download the resulting
 `release-package` artifact to inspect the ZIP before creating a real tag.
+
+The optional **publish** checkbox is for explicitly publishing an existing tag.
+The merged version-PR job uses this mode because GitHub does not trigger workflows
+from token-created tag/Release events; `workflow_dispatch` is an exception. Leave
+it unchecked when previewing a package.
 
 For a local package preview without requiring a Git tag:
 

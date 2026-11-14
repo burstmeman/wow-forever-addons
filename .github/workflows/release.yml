@@ -8,9 +8,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Prospective addon tag to preview from main (no publication)'
+        description: 'Addon/version tag: prospective for preview, existing for publication'
         required: true
         type: string
+      publish:
+        description: 'Publish an existing tag (leave disabled for a main-branch preview)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -32,10 +37,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'refs/heads/main' || format('refs/tags/{0}', env.RELEASE_TAG) }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish && 'refs/heads/main' || format('refs/tags/{0}', env.RELEASE_TAG) }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - run: >-
@@ -58,8 +63,10 @@ jobs:
       - name: Audit release tooling
         run: python -m pip_audit --strict --progress-spinner off -r .github/ci/requirements.txt
       - name: Build reproducible release ZIP
+        env:
+          PUBLISH: ${{ inputs.publish }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$PUBLISH" != true ]; then
             python .github/ci/release.py preview
           else
             python .github/ci/release.py prepare
@@ -75,7 +82,7 @@ jobs:
   publish:
     name: Publish to CurseForge and GitHub
     needs: build
-    if: github.event_name != 'workflow_dispatch'
+    if: github.event_name != 'workflow_dispatch' || inputs.publish
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -87,7 +94,7 @@ jobs:
           ref: refs/heads/main
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - run: >-
