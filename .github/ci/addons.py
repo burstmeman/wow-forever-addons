@@ -34,7 +34,7 @@ def parse_config(text):
         raise ValueError("addons must be a list")
     names, paths = set(), []
     for addon in data["addons"]:
-        if not isinstance(addon, dict) or set(addon) - {"name", "path", "manifest", "status", "tests", "security"}:
+        if not isinstance(addon, dict) or set(addon) - {"name", "path", "manifest", "status", "tests", "security", "release"}:
             raise ValueError("Unknown addon configuration fields")
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", addon.get("name", "")):
             raise ValueError("Addon names must be stable identifiers")
@@ -46,6 +46,25 @@ def parse_config(text):
         if any(path == old or path.startswith(old + "/") or old.startswith(path + "/") for old in paths):
             raise ValueError("Addon paths must not overlap")
         paths.append(path)
+        release = addon.get("release")
+        if release is not None:
+            if not isinstance(release, dict) or set(release) != {"files", "curseforge"}:
+                raise ValueError("release must contain files and curseforge")
+            patterns = release["files"]
+            if not isinstance(patterns, list) or not patterns:
+                raise ValueError("release.files must be a nonempty glob list")
+            for pattern in patterns:
+                inside(ROOT / path, pattern)
+            cf = release["curseforge"]
+            if not isinstance(cf, dict) or set(cf) != {"project_id", "game_version_type_id", "game_versions"}:
+                raise ValueError("Invalid CurseForge release configuration")
+            for key in ("project_id", "game_version_type_id"):
+                if type(cf[key]) is not int or cf[key] <= 0:
+                    raise ValueError(f"curseforge.{key} must be a positive integer")
+            if not isinstance(cf["game_versions"], list) or not cf["game_versions"] or not all(
+                isinstance(v, str) and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", v) for v in cf["game_versions"]
+            ):
+                raise ValueError("curseforge.game_versions must list exact game version names")
         if addon.get("status") not in STATUSES:
             raise ValueError("Invalid addon status")
         manifest = addon.get("manifest")
