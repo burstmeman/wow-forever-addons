@@ -9,8 +9,8 @@ local panel, content, scroll, empty, footer, search, modeButton
 local header, close, scan, title, languageLabel, languageDropdown
 local settingsMode = false
 local query = ""
-local WIDTH, HEIGHT, CELL, COLUMNS = 384, 394, 36, 5
-local PADDING, MAX_ROWS = 4, 6
+local WIDTH, HEIGHT, CELL, COLUMNS = 384, 394, 32, 6
+local PADDING, MAX_ROWS = 3, 6
 
 local function savePosition()
     local point, _, relativePoint, x, y = panel:GetPoint()
