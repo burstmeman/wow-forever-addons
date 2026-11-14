@@ -97,24 +97,48 @@ def create_request(api, name, bump, notes=""):
     current = version_of(api.text(addon["path"] + "/" + addon["manifest"], base["sha"]))
     version = next_version(current, bump)
     branch = f"codex/release-{name}-{version}"
-    existing = api.optional("/git/ref/heads/" + branch)
-    if existing:
-        prs = api.call("/pulls?state=open&head=" + urllib.parse.quote(api.repo.split("/")[0] + ":" + branch, safe=""))
-        if len(prs) == 1:
-            print(f"Release request already exists: {prs[0]['html_url']}")
-            return prs[0]
-        raise ValueError("Release branch already exists without one open PR; inspect it before retrying")
     if not isinstance(notes, str) or len(notes) > 10000:
         raise ValueError("Release notes must contain at most 10000 characters")
     intent = {"addon": name, "previous_version": current, "version": version, "bump": bump,
               "tag": f"{name}/v{version}", "base_sha": base["sha"], "notes": notes}
-    files = request_files(api, addon, intent)
-    tree = api.call("/git/trees", "POST", {"base_tree": base["commit"]["tree"]["sha"], "tree": [
-        {"path": path, "mode": "100644", "type": "blob", "content": content} for path, content in files.items()]})
-    commit = api.call("/git/commits", "POST", {"message": f"Release {name} {version}", "tree": tree["sha"], "parents": [base["sha"]]})
-    api.call("/git/refs", "POST", {"ref": "refs/heads/" + branch, "sha": commit["sha"]})
-    pr = api.call("/pulls", "POST", {"base": "main", "head": branch, "title": f"Release {name} {version}",
-        "body": f"Bump {name} from {current} to {version} ({bump}).\n\nAfter CI passes and this PR is merged, the release workflow creates `{intent['tag']}` and publishes to CurseForge.\n\n" + (notes or "No additional release notes.")})
+    existing = api.optional("/git/ref/heads/" + branch)
+    if existing:
+        prs = api.call("/pulls?state=all&head=" + urllib.parse.quote(api.repo.split("/")[0] + ":" + branch, safe=""))
+        if len(prs) == 1 and prs[0]["state"] == "open":
+            print(f"Release request already exists: {prs[0]['html_url']}")
+            return prs[0]
+        if prs:
+            raise ValueError("Release branch has closed or conflicting PRs; refusing to reopen a cancelled release")
+        # A previous run may have created the branch before PR creation was denied.
+        saved = json.loads(api.text(f"release-requests/{name}.json", existing["object"]["sha"]))
+        if (set(saved) != set(intent) or not re.fullmatch(r"[0-9a-f]{40}", saved.get("base_sha", ""))
+                or any(saved[key] != value for key, value in intent.items() if key != "base_sha")):
+            raise ValueError("Existing release branch describes a different request; refusing to overwrite it")
+        expected = request_files(api, addon, saved)
+        comparison = api.call(f"/compare/{saved['base_sha']}...{existing['object']['sha']}")
+        if {f["filename"]: f["sha"] for f in comparison["files"]} != {p: blob_sha(c) for p, c in expected.items()}:
+            raise ValueError("Existing release branch was modified; refusing to resume it")
+        intent = saved
+        print(f"Resuming validated release branch: {branch}")
+    else:
+        files = request_files(api, addon, intent)
+        tree = api.call("/git/trees", "POST", {"base_tree": base["commit"]["tree"]["sha"], "tree": [
+            {"path": path, "mode": "100644", "type": "blob", "content": content} for path, content in files.items()]})
+        commit = api.call("/git/commits", "POST", {"message": f"Release {name} {version}", "tree": tree["sha"], "parents": [base["sha"]]})
+        api.call("/git/refs", "POST", {"ref": "refs/heads/" + branch, "sha": commit["sha"]})
+    try:
+        pr = api.call("/pulls", "POST", {"base": "main", "head": branch, "title": f"Release {name} {version}",
+            "body": f"Bump {name} from {current} to {version} ({bump}).\n\nAfter CI passes and this PR is merged, the release workflow creates `{intent['tag']}` and publishes to CurseForge.\n\n" + (notes or "No additional release notes.")})
+    except urllib.error.HTTPError as error:
+        if error.code != 403:
+            raise
+        raise SystemExit(
+            "GitHub denied PR creation (HTTP 403). In Settings > Actions > General > Workflow permissions, "
+            "enable 'Allow GitHub Actions to create and approve pull requests' and Save. "
+            "If an organization policy disables that setting, contact its administrator. "
+            f"The branch {branch} has been preserved. Start a NEW 'Next addon version' run from main "
+            f"with addon={name} and bump={bump} to resume it; no tag or release has been published."
+        ) from None
     print(f"Prepared {current} -> {version}: {pr['html_url']}")
     return pr
 

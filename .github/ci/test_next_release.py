@@ -3,6 +3,7 @@ import copy
 import json
 from pathlib import Path
 import tempfile
+import urllib.error
 import unittest
 from unittest.mock import patch
 
@@ -52,12 +53,12 @@ class FakeAPI:
             target[payload["ref"].split("/", 2)[2]] = {"object": {"type": "commit", "sha": payload["sha"]}}
             return {}
         if path == "/pulls" and method == "POST":
-            self.pr = {"number": 1, "html_url": "https://github.com/owner/repo/pull/1", "merged": False,
+            self.pr = {"number": 1, "state": "open", "html_url": "https://github.com/owner/repo/pull/1", "merged": False,
                 "user": {"login": "github-actions[bot]"}, "base": {"ref": "main"},
                 "head": {"ref": payload["head"], "sha": "b" * 40, "repo": {"full_name": self.repo}}, "merge_commit_sha": "d" * 40}
             return self.pr
-        if path.startswith("/pulls?state=open"):
-            return [self.pr]
+        if path.startswith("/pulls?state=all"):
+            return [self.pr] if self.pr else []
         if path == "/pulls/1":
             return self.pr
         if path.startswith("/compare/"):
@@ -104,6 +105,51 @@ class NextReleaseTests(unittest.TestCase):
         second = self.prepare()
         self.assertEqual(first["number"], second["number"])
         self.assertEqual(self.api.commits, 1)
+
+    def test_denied_pr_creation_resumes_existing_branch(self):
+        original = self.api.call
+        def denied(path, method="GET", payload=None):
+            if path == "/pulls" and method == "POST":
+                raise urllib.error.HTTPError("https://api.github.com/repos/owner/repo/pulls", 403, "Forbidden", {}, None)
+            return original(path, method, payload)
+        with patch.object(self.api, "call", side_effect=denied), self.assertRaisesRegex(SystemExit, "Allow GitHub Actions"):
+            self.prepare()
+        self.assertEqual(self.api.commits, 1)
+        self.assertIsNone(self.api.pr)
+        pr = self.prepare()
+        self.assertEqual(pr["state"], "open")
+        self.assertEqual(self.api.commits, 1, "retry must not rewrite the existing branch")
+
+    def test_modified_or_cancelled_branch_is_not_resumed(self):
+        self.prepare()
+        self.api.pr["state"] = "closed"
+        with self.assertRaisesRegex(ValueError, "cancelled"):
+            self.prepare()
+        self.api.pr = None
+        self.api.files["Example/Main.lua"] = "unrelated changes"
+        with self.assertRaisesRegex(ValueError, "modified"):
+            self.prepare()
+
+    def test_resume_after_main_advances_keeps_original_base(self):
+        self.prepare()
+        self.api.pr = None
+        original = self.api.call
+        def advanced(path, method="GET", payload=None):
+            result = original(path, method, payload)
+            if path == "/branches/main":
+                result["commit"]["sha"] = "f" * 40
+            return result
+        with patch.object(self.api, "call", side_effect=advanced):
+            self.prepare()
+        intent = json.loads(self.api.files["release-requests/Example.json"])
+        self.assertEqual(intent["base_sha"], "a" * 40)
+        self.assertEqual(self.api.commits, 1)
+
+    def test_orphan_branch_must_match_requested_notes(self):
+        self.prepare()
+        self.api.pr = None
+        with self.assertRaisesRegex(ValueError, "different request"):
+            next_release.create_request(self.api, "Example", "patch", "Different notes")
 
     def test_merge_creates_tag_and_dispatches_publication(self):
         self.prepare()
