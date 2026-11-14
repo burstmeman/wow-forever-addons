@@ -4,6 +4,12 @@ addons:
     path: CompactAddonButtons
     manifest: CompactAddonButtons.toc
     status: release
+    release:
+      files: ['*.toc', '*.lua', 'Locales/*.lua', 'UI/*.lua', 'Media/*']
+      curseforge:
+        project_id: 1804859
+        game_version_type_id: 88568
+        game_versions: ['1.60.1']
     tests:
       command: [python, tests/run.py]
       requirements: tests/requirements.txt

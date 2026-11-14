@@ -4,6 +4,9 @@
 in each addon's `.toc`, not in this registry. Status is one of `release`, `beta`,
 `development`, or `experiment`. Release and beta addons must declare tests.
 
+Per-addon tag packaging and CurseForge publication are described in [RELEASING.md](RELEASING.md).
+Release settings also live in `addons.yml`; versions remain in each `.toc`.
+
 ## Add an addon
 
 After adding an addon directory and its manifest, run:
