@@ -1,0 +1,20 @@
+schema: 1
+addons:
+  - name: CompactAddonButtons
+    path: CompactAddonButtons
+    manifest: CompactAddonButtons.toc
+    status: release
+    tests:
+      command: [python, tests/run.py]
+      requirements: tests/requirements.txt
+    security:
+      globals:
+        - CompactAddonButtons
+        - BetterAddonButtons
+        - CompactAddonButtonsDB
+        - BetterAddonButtonsDB
+        - SLASH_COMPACTADDONBUTTONS1
+        - SLASH_COMPACTADDONBUTTONS2
+        - SLASH_COMPACTADDONBUTTONS3
+        - SLASH_COMPACTADDONBUTTONS4
+      global_lookups: [CompactAddonButtonsScrollScrollBar]
