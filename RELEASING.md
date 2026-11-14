@@ -75,9 +75,11 @@ already selects alpha. The manifest must contain the same suffix as the tag.
 
 ## Preview without publication
 
-Run **Release addon** manually with an existing tag. `workflow_dispatch` always
-validates, tests, and builds, and **never publishes** or receives the CurseForge
-secret. Download the resulting `release-package` artifact to inspect the ZIP.
+Run **Release addon** manually with a prospective tag matching the version in
+`main`, such as `CompactAddonButtons/v1.2.8`. The tag does not need to exist:
+`workflow_dispatch` checks out `main`, validates, tests, and builds, and **never
+publishes** or receives the CurseForge secret. Download the resulting
+`release-package` artifact to inspect the ZIP before creating a real tag.
 
 For a local package preview without requiring a Git tag:
 
