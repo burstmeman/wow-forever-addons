@@ -43,6 +43,8 @@ end
 
 function Window.CreateSlot()
     local slot = CreateFrame("Frame", nil, gridContent)
+    slot:SetFrameStrata(gridContent:GetFrameStrata())
+    slot:SetFrameLevel(gridContent:GetFrameLevel() + 1)
     slot:SetSize(CELL, CELL)
     slots[#slots + 1] = slot
     return slot
@@ -248,6 +250,9 @@ function Window.Create()
 
     -- Keep the icon grid outside the settings scroll frame so it cannot scroll or clip.
     gridContent = CreateFrame("Frame", nil, panel)
+    -- Explicitly promote the whole hierarchy; a plain child may retain MEDIUM strata.
+    gridContent:SetFrameStrata(panel:GetFrameStrata())
+    gridContent:SetFrameLevel(panel:GetFrameLevel() + 1)
     gridContent:SetPoint("TOPLEFT", PADDING, -PADDING)
     gridContent:Hide()
     scroll = CreateFrame("ScrollFrame", "CompactAddonButtonsScroll", panel, "UIPanelScrollFrameTemplate")
