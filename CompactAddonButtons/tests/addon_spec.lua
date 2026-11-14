@@ -34,11 +34,11 @@ local lib = {
 LibStub = function(name) assert(name == "LibDBIcon-1.0"); return lib end
 
 -- Malformed persisted settings must recover before any frame is positioned.
-CompactAddonButtonsDB = { exceptions = false, position = { "INVALID", "CENTER", 0, 0 }, angle = 0/0 }
+CompactAddonButtonsDB = { exceptions = false, position = { "INVALID", "CENTER", 0, 0 }, angle = 0/0, columns = false }
 local legacySettings
 if TEST_LEGACY then
     legacySettings = { exceptions = { ["lib:LegacyOnly"] = true }, angle = 131,
-        position = { "TOP", "TOP", 15, -20 } }
+        position = { "TOP", "TOP", 15, -20 }, columns = 99 }
     BetterAddonButtonsDB, CompactAddonButtonsDB = legacySettings, nil
 else
     -- Stale legacy data must never overwrite an already existing current database.
@@ -67,6 +67,7 @@ else
     assert(CompactAddonButtonsDB.angle == 220 and CompactAddonButtonsDB.position[1] == "CENTER")
 end
 assert(BetterAddonButtonsDB == nil and BetterAddonButtons == CompactAddonButtons)
+assert(ns.Settings.GetColumns() == 6, "invalid or migrated columns must default to six")
 assert(SLASH_COMPACTADDONBUTTONS1 == "/cab" and SLASH_COMPACTADDONBUTTONS3 == "/bab")
 assert(#ns.Buttons.All() == 5, "discover LibDBIcon, fallback, backdrop, hidden, and custom buttons once")
 assert(ns.Buttons.Find(alpha).key == "lib:Alpha")
@@ -108,7 +109,7 @@ assert(alpha:GetParent() == slot, "external positioning must not leak a collecte
 -- Settings mode contains every discovered entry, including exceptions and addon-hidden buttons.
 ns.App.Toggle(true)
 assert(ns.Window.GetFrame():IsShown() and not slot:IsShown())
-assert(ns.Window.GetFrame():GetWidth() == 384 and ns.Window.GetFrame():GetHeight() == 394, "settings keep a readable layout")
+assert(ns.Window.GetFrame():GetWidth() == 384 and ns.Window.GetFrame():GetHeight() == 432, "settings keep a readable layout")
 assert(select(2, ns.Window.GetFrame():GetPoint()) == UIParent, "settings use their saved independent position")
 local check
 for _, frame in ipairs(frames) do
@@ -232,6 +233,51 @@ ns.App.Toggle(false)
 assert(ns.Window.GetFrame():GetWidth() == 218 and ns.Window.GetFrame():GetHeight() == 198)
 local popupScroll = CompactAddonButtonsScroll
 assert(popupScroll.child:GetWidth() == 192 and popupScroll.child:GetHeight() > 192)
+
+-- The actual settings menu controls saved columns, wrapping, and overflow.
+local visible = {}
+for _, entry in ipairs(ns.Buttons.All()) do
+    if entry.collected and entry.button:IsShown() then visible[#visible + 1] = entry end
+end
+ns.App.Toggle(true)
+local columnsDropdown = CompactAddonButtonsColumns
+assert(columnsDropdown:IsShown() and #columnsDropdown.choices == 12 and columnsDropdown.selectedText == "6")
+for value = 1, 12 do
+    local choice = columnsDropdown.choices[value]
+    assert(choice.value == value)
+    choice.choose(choice.value)
+    assert(ns.Settings.GetColumns() == value and CompactAddonButtonsDB.columns == value)
+    assert(columnsDropdown.selectedText == tostring(value))
+    ns.App.Toggle(false)
+    assert(not columnsDropdown:IsShown(), "grid controls belong only in settings")
+    local rowCount = math.ceil(#visible / value)
+    local overflow = rowCount > 6
+    assert(ns.Window.GetFrame():GetWidth() == value * 32 + 6 + (overflow and 20 or 0))
+    assert(ns.Window.GetFrame():GetHeight() == math.min(6, rowCount) * 32 + 6)
+    for i, entry in ipairs(visible) do
+        local _, x, y = entry.slot:GetPoint()
+        assert(x == ((i - 1) % value) * 32 and y == -math.floor((i - 1) / value) * 32,
+            "changing columns must reflow every visible button")
+    end
+    ns.App.Toggle(true)
+end
+ns.Settings.Initialize()
+assert(ns.Settings.GetColumns() == 12, "columns must survive saved-settings initialization")
+for _, invalid in ipairs({ false, "4", 0, 13, 1.5, 0/0, math.huge }) do
+    assert(not ns.App.SetColumns(invalid) and ns.Settings.GetColumns() == 12)
+end
+assert(not ns.App.SetColumns(nil))
+TestUI.SetCombat(true)
+fire("PLAYER_REGEN_DISABLED")
+columnsDropdown.choices[2].choose(2)
+assert(ns.Settings.GetColumns() == 2 and ns.App.IsPending())
+assert(not ns.Window.GetFrame():IsShown())
+TestUI.SetCombat(false)
+fire("PLAYER_REGEN_ENABLED")
+assert(not ns.App.IsPending() and columnsDropdown.selectedText == "2")
+ns.App.Toggle(false)
+assert(ns.Window.GetFrame():GetWidth() == 90, "combat-deferred columns apply after combat")
+assert(ns.App.SetColumns(6))
 
 -- An empty popup remains small and contains a useful empty-state message.
 for _, entry in ipairs(ns.Buttons.All()) do ns.App.SetException(entry.key, true) end

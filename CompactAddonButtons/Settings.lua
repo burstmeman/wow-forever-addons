@@ -1,6 +1,7 @@
 local _, ns = ...
 local Settings = {}
 ns.Settings = Settings
+Settings.MIN_COLUMNS, Settings.MAX_COLUMNS = 1, 12
 local db
 local anchors = { CENTER = true, TOP = true, BOTTOM = true, LEFT = true, RIGHT = true,
     TOPLEFT = true, TOPRIGHT = true, BOTTOMLEFT = true, BOTTOMRIGHT = true }
@@ -14,6 +15,11 @@ local function validPosition(position)
         and finite(position[3]) and finite(position[4])
 end
 
+local function validColumns(value)
+    return finite(value) and value == math.floor(value)
+        and value >= Settings.MIN_COLUMNS and value <= Settings.MAX_COLUMNS
+end
+
 function Settings.Initialize()
     if type(CompactAddonButtonsDB) ~= "table" and type(BetterAddonButtonsDB) == "table" then
         CompactAddonButtonsDB = BetterAddonButtonsDB
@@ -25,6 +31,7 @@ function Settings.Initialize()
     if not finite(db.angle) then db.angle = 220 end
     if not validPosition(db.position) then db.position = { "CENTER", "CENTER", 0, 0 } end
     if type(db.language) ~= "string" then db.language = "auto" end
+    if not validColumns(db.columns) then db.columns = 6 end
     db.version = 2
 end
 
@@ -43,3 +50,9 @@ function Settings.RenameException(oldKey, newKey)
 end
 function Settings.GetLanguage() return db.language end
 function Settings.SetLanguage(locale) db.language = locale end
+function Settings.GetColumns() return db.columns end
+function Settings.SetColumns(value)
+    if not validColumns(value) then return false end
+    db.columns = value
+    return true
+end

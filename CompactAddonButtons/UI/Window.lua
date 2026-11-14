@@ -7,9 +7,10 @@ local floor, max = math.floor, math.max
 local rows, slots = {}, {}
 local panel, content, scroll, empty, footer, search, modeButton
 local header, close, scan, title, languageLabel, languageDropdown
+local columnsLabel, columnsDropdown
 local settingsMode = false
 local query = ""
-local WIDTH, HEIGHT, CELL, COLUMNS = 384, 394, 32, 6
+local WIDTH, HEIGHT, CELL = 384, 432, 32
 local PADDING, MAX_ROWS = 3, 6
 
 local function savePosition()
@@ -71,17 +72,19 @@ local function layout(count)
     footer:SetShown(settingsMode)
     languageLabel:SetShown(settingsMode)
     languageDropdown:SetShown(settingsMode)
+    columnsLabel:SetShown(settingsMode)
+    columnsDropdown:SetShown(settingsMode)
     scroll:ClearAllPoints()
     empty:ClearAllPoints()
     if settingsMode then
         panel:SetSize(WIDTH, HEIGHT)
-        scroll:SetPoint("TOPLEFT", 16, -120)
+        scroll:SetPoint("TOPLEFT", 16, -158)
         scroll:SetPoint("BOTTOMRIGHT", -30, 52)
         content:SetWidth(336)
-        empty:SetPoint("TOPLEFT", 24, -170)
+        empty:SetPoint("TOPLEFT", 24, -208)
         empty:SetWidth(330)
     else
-        local columns = math.min(COLUMNS, max(1, count))
+        local columns = math.min(ns.Settings.GetColumns(), max(1, count))
         local rowsNeeded = max(1, math.ceil(count / columns))
         local overflow = rowsNeeded > MAX_ROWS
         local width = count == 0 and 210 or columns * CELL + PADDING * 2
@@ -94,7 +97,7 @@ local function layout(count)
         Window.PositionPopup()
     end
     local bar = scroll.ScrollBar or _G["CompactAddonButtonsScrollScrollBar"]
-    if bar then bar:SetShown(settingsMode or count > COLUMNS * MAX_ROWS) end
+    if bar then bar:SetShown(settingsMode or count > ns.Settings.GetColumns() * MAX_ROWS) end
 end
 
 function Window.Refresh()
@@ -108,7 +111,7 @@ function Window.Refresh()
             visible[#visible + 1] = entry
         end
     end
-    local columns = math.min(COLUMNS, max(1, #visible))
+    local columns = math.min(ns.Settings.GetColumns(), max(1, #visible))
     layout(#visible)
     local count, activeSlots = 0, {}
     for _, entry in ipairs(visible) do
@@ -208,8 +211,21 @@ function Window.Create()
         end
     end)
 
+    columnsLabel = text(panel, "GameFontNormal", T("BUTTONS_PER_ROW"), 16, -87)
+    columnsLabel:SetWidth(160)
+    columnsDropdown = CreateFrame("DropdownButton", "CompactAddonButtonsColumns", panel, "WowStyle1DropdownTemplate")
+    columnsDropdown:SetPoint("TOPLEFT", 180, -78)
+    columnsDropdown:SetWidth(188)
+    columnsDropdown:SetupMenu(function(_, root)
+        local function selected(value) return ns.Settings.GetColumns() == value end
+        local function choose(value) ns.App.SetColumns(value) end
+        for value = ns.Settings.MIN_COLUMNS, ns.Settings.MAX_COLUMNS do
+            root:CreateRadio(tostring(value), selected, choose, value)
+        end
+    end)
+
     modeButton = smallButton(panel, T("SETTINGS"), 108)
-    modeButton:SetPoint("TOPRIGHT", -16, -82)
+    modeButton:SetPoint("TOPRIGHT", -16, -120)
     modeButton:SetScript("OnClick", function() setMode(not settingsMode) end)
     scan = smallButton(panel, T("SCAN"), 84)
     scan:SetPoint("BOTTOMRIGHT", -14, 12)
@@ -217,7 +233,7 @@ function Window.Create()
 
     search = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
     search:SetSize(190, 22)
-    search:SetPoint("TOPLEFT", 20, -82)
+    search:SetPoint("TOPLEFT", 20, -120)
     search:SetAutoFocus(false)
     search:SetMaxLetters(100)
     search:SetScript("OnEscapePressed", function(self) self:ClearFocus(); panel:Hide() end)
@@ -232,10 +248,10 @@ function Window.Create()
     panel:SetScript("OnHide", function() search:ClearFocus(); GameTooltip:Hide() end)
 
     scroll = CreateFrame("ScrollFrame", "CompactAddonButtonsScroll", panel, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 16, -120)
+    scroll:SetPoint("TOPLEFT", 16, -158)
     scroll:SetPoint("BOTTOMRIGHT", -30, 52)
     content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(COLUMNS * CELL, 1)
+    content:SetSize(ns.Settings.GetColumns() * CELL, 1)
     scroll:SetScrollChild(content)
     empty = text(panel, "GameFontDisable", T("EMPTY"), 24, -130)
     empty:SetWidth(330)
@@ -255,4 +271,6 @@ function Window.RefreshTexts()
     scan:SetText(T("SCAN"))
     languageLabel:SetText(T("LANGUAGE"))
     languageDropdown:GenerateMenu()
+    columnsLabel:SetText(T("BUTTONS_PER_ROW"))
+    columnsDropdown:GenerateMenu()
 end

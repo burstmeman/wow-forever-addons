@@ -15,5 +15,6 @@ ns.Localization.Register("ruRU", "Русский", {
     SCAN = "Обновить",
     LOCKED = "Окно нельзя открыть в бою.",
     LANGUAGE = "Язык",
+    BUTTONS_PER_ROW = "Кнопок в ряду",
     AUTO_LANGUAGE = "Автоматически (язык клиента)",
 })
