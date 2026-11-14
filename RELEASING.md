@@ -43,6 +43,11 @@ Automatic increments accept stable `major.minor.patch` versions. For prerelease
 suffixes or a custom version, use the manual version/tag process below. Repeating
 the same selection while its release PR is open returns the existing PR.
 
+Generated branches use `release/<AddonName>/<version>`, for example
+`release/CompactAddonButtons/1.3.0`. Release commits and PR titles follow
+Commitizen / Conventional Commits: `chore(CompactAddonButtons): release 1.3.0`.
+Repository branch and commit conventions are recorded in `AGENTS.md` and `.cz.toml`.
+
 GitHub's `choice` options are static YAML, so the list is generated from
 `addons.yml`, not fetched dynamically by the web UI. The registration command
 updates the choices automatically; after manually editing the registry, run:

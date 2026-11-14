@@ -47,12 +47,15 @@ class FakeAPI:
         if path == "/git/commits":
             self.commits += 1
             assert "Co-authored-by" not in payload["message"]
+            assert payload["message"] == "chore(Example): release 1.2.9"
             return {"sha": "b" * 40}
         if path == "/git/refs":
             target = self.branches if payload["ref"].startswith("refs/heads/") else self.tags
             target[payload["ref"].split("/", 2)[2]] = {"object": {"type": "commit", "sha": payload["sha"]}}
             return {}
         if path == "/pulls" and method == "POST":
+            assert payload["head"] == "release/Example/1.2.9"
+            assert payload["title"] == "chore(Example): release 1.2.9"
             self.pr = {"number": 1, "state": "open", "html_url": "https://github.com/owner/repo/pull/1", "merged": False,
                 "user": {"login": "github-actions[bot]"}, "base": {"ref": "main"},
                 "head": {"ref": payload["head"], "sha": "b" * 40, "repo": {"full_name": self.repo}}, "merge_commit_sha": "d" * 40}

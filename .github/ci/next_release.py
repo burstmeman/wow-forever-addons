@@ -96,7 +96,7 @@ def create_request(api, name, bump, notes=""):
     base = api.call("/branches/main")["commit"]
     current = version_of(api.text(addon["path"] + "/" + addon["manifest"], base["sha"]))
     version = next_version(current, bump)
-    branch = f"codex/release-{name}-{version}"
+    branch = f"release/{name}/{version}"
     if not isinstance(notes, str) or len(notes) > 10000:
         raise ValueError("Release notes must contain at most 10000 characters")
     intent = {"addon": name, "previous_version": current, "version": version, "bump": bump,
@@ -124,10 +124,10 @@ def create_request(api, name, bump, notes=""):
         files = request_files(api, addon, intent)
         tree = api.call("/git/trees", "POST", {"base_tree": base["commit"]["tree"]["sha"], "tree": [
             {"path": path, "mode": "100644", "type": "blob", "content": content} for path, content in files.items()]})
-        commit = api.call("/git/commits", "POST", {"message": f"Release {name} {version}", "tree": tree["sha"], "parents": [base["sha"]]})
+        commit = api.call("/git/commits", "POST", {"message": f"chore({name}): release {version}", "tree": tree["sha"], "parents": [base["sha"]]})
         api.call("/git/refs", "POST", {"ref": "refs/heads/" + branch, "sha": commit["sha"]})
     try:
-        pr = api.call("/pulls", "POST", {"base": "main", "head": branch, "title": f"Release {name} {version}",
+        pr = api.call("/pulls", "POST", {"base": "main", "head": branch, "title": f"chore({name}): release {version}",
             "body": f"Bump {name} from {current} to {version} ({bump}).\n\nAfter CI passes and this PR is merged, the release workflow creates `{intent['tag']}` and publishes to CurseForge.\n\n" + (notes or "No additional release notes.")})
     except urllib.error.HTTPError as error:
         if error.code != 403:
@@ -148,7 +148,7 @@ def finalize(api, event):
     if not (pr.get("merged") and pr["user"]["login"] == "github-actions[bot]" and pr["base"]["ref"] == "main"
             and pr["head"]["repo"]["full_name"] == api.repo):
         raise ValueError("Only a merged, same-repository release PR created by Actions can be finalized")
-    branch = re.fullmatch(r"codex/release-([A-Za-z][A-Za-z0-9_-]*)-([0-9]+\.[0-9]+\.[0-9]+)", pr["head"]["ref"])
+    branch = re.fullmatch(r"release/([A-Za-z][A-Za-z0-9_-]*)/([0-9]+\.[0-9]+\.[0-9]+)", pr["head"]["ref"])
     if not branch:
         raise ValueError("Not a generated release branch")
     addon = release_addon(branch[1])
