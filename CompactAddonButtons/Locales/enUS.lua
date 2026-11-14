@@ -1,0 +1,19 @@
+local _, ns = ...
+ns.Localization.Register("enUS", "English", {
+    TITLE = "Addon buttons",
+    SETTINGS = "Exceptions",
+    BACK = "Back",
+    EMPTY = "No addon buttons found yet.",
+    HINT = "Buttons keep their normal clicks and tooltips.",
+    EXCEPTIONS = "Checked buttons stay on the minimap.",
+    COMBAT = "Changes will apply after combat.",
+    LEFT_CLICK = "Left-click to open buttons",
+    RIGHT_CLICK = "Right-click to manage exceptions",
+    DRAG = "Drag to move around the minimap",
+    HIDDEN = "hidden by its addon",
+    SEARCH = "Find a button...",
+    SCAN = "Refresh",
+    LOCKED = "The window cannot be opened in combat.",
+    LANGUAGE = "Language",
+    AUTO_LANGUAGE = "Automatic (client language)",
+}, { "enGB" })

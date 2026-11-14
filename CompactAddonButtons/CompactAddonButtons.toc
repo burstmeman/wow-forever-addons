@@ -1,0 +1,24 @@
+## Interface: 16001
+## Title: Compact Addon Buttons
+## Notes: A tidy home for addon minimap buttons, with per-button exceptions.
+## Notes-ruRU: Собирает кнопки аддонов в одном окне с настраиваемыми исключениями.
+## Author: Ilya Rakavets
+## Version: 1.2.0
+## SavedVariables: CompactAddonButtonsDB, BetterAddonButtonsDB
+
+Settings.lua
+Localization.lua
+Locales/enUS.lua
+Locales/ruRU.lua
+Locales/esES.lua
+Locales/deDE.lua
+Locales/frFR.lua
+Buttons.lua
+Collection.lua
+Discovery.lua
+UI/Widgets.lua
+UI/Window.lua
+UI/MinimapButton.lua
+Application.lua
+API.lua
+Bootstrap.lua
