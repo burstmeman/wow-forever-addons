@@ -12,6 +12,10 @@ local alpha = button("LibDBIcon10_Alpha")
 local hidden = button("LibDBIcon10_Hidden")
 hidden:Hide()
 local beta = button("BetaMinimapButton", MinimapBackdrop)
+alpha:SetFrameStrata("MEDIUM")
+alpha:SetFrameLevel(11)
+beta:SetFrameStrata("HIGH")
+beta:SetFrameLevel(23)
 local native = button("MinimapZoomIn")
 local plainNative = CreateFrame("Button", "PlainMinimapControl", Minimap)
 local protected = button("ProtectedMinimapButton")
@@ -111,9 +115,14 @@ for _, frame in ipairs(frames) do
     if frame.kind == "CheckButton" and frame.entry == ns.Buttons.Find(alpha) then check = frame end
 end
 assert(check and check:IsShown())
+-- Reparenting and drawer layout can change a collected button's stacking order.
+alpha:SetFrameStrata("BACKGROUND")
+alpha:SetFrameLevel(0)
 check:SetChecked(true)
 check.scripts.OnClick(check)
 assert(CompactAddonButtonsDB.exceptions["lib:Alpha"] and alpha:GetParent() == Minimap)
+assert(alpha:GetFrameStrata() == "MEDIUM" and alpha:GetFrameLevel() == 11,
+    "exceptions must regain their original stacking order immediately, without reloading")
 assert(alpha:GetNumPoints() == 2)
 local point, relative, relativePoint, x, y = alpha:GetPoint()
 assert(point == "TOPLEFT" and relative == Minimap and relativePoint == "BOTTOMRIGHT" and x == 13 and y == -9)
@@ -124,6 +133,14 @@ ns.App.Scan()
 assert(#ns.Buttons.All() == 5 and alpha:GetParent() == Minimap, "repeat scans retain exceptions")
 ns.App.SetException("lib:Alpha", false)
 assert(alpha:GetParent() == slot)
+alpha:SetFrameStrata("DIALOG")
+alpha:SetFrameLevel(4)
+beta:SetFrameStrata("BACKGROUND")
+beta:SetFrameLevel(0)
+ns.App.SetException("frame:BetaMinimapButton", true)
+assert(beta:GetParent() == MinimapBackdrop and beta:GetFrameStrata() == "HIGH" and beta:GetFrameLevel() == 23,
+    "backdrop buttons must retain their own strata and level")
+ns.App.SetException("frame:BetaMinimapButton", false)
 ns.App.Toggle(false)
 assert(alpha:IsVisible())
 
@@ -148,6 +165,8 @@ assert(not ns.Buttons.Find(afterLogin), "no scanning or moving UI during combat"
 TestUI.SetCombat(false)
 fire("PLAYER_REGEN_ENABLED")
 assert(not ns.App.IsPending() and alpha:GetParent() == Minimap)
+assert(alpha:GetFrameStrata() == "MEDIUM" and alpha:GetFrameLevel() == 11,
+    "repeated collection and combat-deferred release must restore stacking order")
 assert(ns.Buttons.Find(afterLogin).collected)
 
 -- LibDBIcon can become available after a fallback button has already been collected.

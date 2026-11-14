@@ -4,7 +4,7 @@
 
 A standalone minimap button drawer for **World of Warcraft: Forever**, Interface **16001**. No required libraries or other addons.
 
-Version **1.2.1**.
+Version **1.2.2**.
 
 ## Installation
 
@@ -84,7 +84,7 @@ Modules are plain Lua tables with explicit responsibilities; there is no framewo
 
 ## How collection works
 
-The drawer reparents the original button into a grid cell. Left-click, right-click, hover tooltips, and other original button scripts continue to belong to the source addon. Drag scripts are temporarily disabled inside the drawer and restored when a button becomes an exception. Original parent and all anchor points are restored too. Buttons are not resized, and buttons hidden by their source addon are never forcibly shown.
+The drawer reparents the original button into a grid cell. Left-click, right-click, hover tooltips, and other original button scripts continue to belong to the source addon. Drag scripts are temporarily disabled inside the drawer and restored when a button becomes an exception. Original parent, frame strata, frame level, and all anchor points are restored too, so excluded buttons regain their minimap stacking order immediately. Buttons are not resized, and buttons hidden by their source addon are never forcibly shown.
 
 Discovery uses an already loaded `LibDBIcon-1.0` when available, then searches the minimap and minimap backdrop for named addon icon buttons, including nested minimap buttons. A two-second scan catches delayed creation and load-on-demand addons. Names from LibDBIcon are used as stable exception identities. An exception discovered before LibDBIcon loads is migrated to its library identity when possible.
 
