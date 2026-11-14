@@ -9,7 +9,7 @@ import urllib.error
 import urllib.parse
 
 from addons import registry, sync_release_choices
-from release import channel, find_release, request_json
+from release import api_error_message, channel, find_release, request_json
 
 VERSION_LINE = re.compile(r"(?m)^(## Version:[ \t]*)([^\r\n]+)(\r?)$")
 
@@ -185,11 +185,14 @@ def finalize(api, event):
 
 if __name__ == "__main__":
     import sys
-    if sys.argv[1] == "sync":
-        sync_release_choices()
-    elif sys.argv[1] == "request":
-        create_request(GitHub(), os.environ["ADDON_INPUT"], os.environ["BUMP_INPUT"], os.environ.get("NOTES_INPUT", ""))
-    elif sys.argv[1] == "finalize":
-        finalize(GitHub(), json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8")))
-    else:
-        raise SystemExit("Choose sync, request, or finalize")
+    try:
+        if sys.argv[1] == "sync":
+            sync_release_choices()
+        elif sys.argv[1] == "request":
+            create_request(GitHub(), os.environ["ADDON_INPUT"], os.environ["BUMP_INPUT"], os.environ.get("NOTES_INPUT", ""))
+        elif sys.argv[1] == "finalize":
+            finalize(GitHub(), json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8")))
+        else:
+            raise SystemExit("Choose sync, request, or finalize")
+    except urllib.error.HTTPError as error:
+        raise SystemExit(api_error_message(error)) from None

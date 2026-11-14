@@ -96,7 +96,7 @@ class ReleaseTests(unittest.TestCase):
         self.calls = []
         patch.object(release, "git", return_value="a" * 40).start()
         patch.object(release.subprocess, "run").start()
-        patch.dict(os.environ, GITHUB_REPOSITORY="owner/repo", GITHUB_TOKEN="test-github", CURSE_FORGE_DEPLOYMENT_TOKEN="test-curseforge").start()
+        patch.dict(os.environ, GITHUB_REPOSITORY="owner/repo", GITHUB_TOKEN="test-github", CURSE_FORGE_DEPLOYMENT_TOKEN="test-curseforge", RELEASE_TAG="Example/v1.2.3").start()
 
         def api(url, token, header, method="GET", payload=None, content_type="application/json"):
             self.calls.append((url, method, payload))
@@ -213,9 +213,56 @@ class ReleaseTests(unittest.TestCase):
             message = release.api_error_message(error)
         self.assertIn("uploads.github.com/repos/owner/repo/releases/10/assets", message)
         self.assertIn("HTTP 422", message)
-        self.assertIn("immutable release", message)
+        self.assertNotIn("Cannot upload assets", message)
         self.assertNotIn("private-test-token", message)
         self.assertNotIn("?name", message)
+
+    def test_encoded_secrets_and_workflow_commands_in_response_are_never_logged(self):
+        response = b'{"message":"c2VjcmV0LXRlc3QtdG9rZW4=", "errors":["::warning::untrusted"]}'
+        error = urllib.error.HTTPError("https://wow.curseforge.com/api/projects/123/upload-file", 400,
+            "Bad Request", {}, io.BytesIO(response))
+        message = release.api_error_message(error)
+        self.assertIn("HTTP 400", message)
+        self.assertNotIn("c2VjcmV0LXRlc3QtdG9rZW4=", message)
+        self.assertNotIn("::warning::", message)
+
+    def test_credentials_never_leave_https_host_allowlist(self):
+        invalid = [
+            ("http://wow.curseforge.com/api/game/versions", "X-Api-Token"),
+            ("http://api.github.com/repos/owner/repo", "Authorization"),
+            ("https://wow.curseforge.com.evil.invalid/upload", "X-Api-Token"),
+            ("https://evil.invalid/upload", "Authorization"),
+            ("https://api.github.com/", "X-Api-Token"),
+            ("https://wow.curseforge.com/", "Authorization"),
+            ("https://api.github.com/", "authorization"),
+            ("https://user@api.github.com/", "Authorization"),
+            ("https://api.github.com/#fragment", "Authorization"),
+        ]
+        with patch.object(release.urllib.request, "build_opener") as opener:
+            for url, header in invalid:
+                with self.subTest(url=url, header=header), self.assertRaises(ValueError):
+                    release.request_json(url, "synthetic-token", header)
+            opener.assert_not_called()
+
+    def test_cross_tag_or_extra_metadata_cannot_reach_network_or_receipts(self):
+        self.setup_publish()
+        path = self.output / "release.json"
+        original = json.loads(path.read_text(encoding="utf-8"))
+        for metadata in ({**original, "tag": "Example/v1.2.4"},
+                         {**original, "secret": "must-not-be-copied-to-receipt"},
+                         {**original, "archive": "nested/Example-1.2.3.zip"},
+                         {**original, "commit": "--option"},
+                         {**original, "sha256": "invalid"}):
+            path.write_text(json.dumps(metadata), encoding="utf-8")
+            with self.subTest(fields=sorted(metadata)), self.assertRaises(ValueError):
+                release.publish(self.output)
+        release.request_json.assert_not_called()
+
+    def test_missing_expected_tag_blocks_publication(self):
+        self.setup_publish()
+        with patch.dict(os.environ, RELEASE_TAG=""), self.assertRaisesRegex(ValueError, "requested release tag"):
+            release.publish(self.output)
+        release.request_json.assert_not_called()
 
     def test_timeout_blocks_automatic_resubmission(self):
         self.setup_publish(timeout=True)

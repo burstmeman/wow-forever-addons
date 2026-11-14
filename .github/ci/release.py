@@ -103,10 +103,10 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def request_json(url, token, header, method="GET", payload=None, content_type="application/json"):
-    if header == "X-Api-Token" and urllib.parse.urlsplit(url).netloc != "wow.curseforge.com":
-        raise ValueError("Invalid CurseForge API host")
-    if header == "Authorization" and urllib.parse.urlsplit(url).netloc not in {"api.github.com", "uploads.github.com"}:
-        raise ValueError("Invalid GitHub API host")
+    endpoint = urllib.parse.urlsplit(url)
+    hosts = {"X-Api-Token": {"wow.curseforge.com"}, "Authorization": {"api.github.com", "uploads.github.com"}}
+    if endpoint.scheme != "https" or endpoint.netloc not in hosts.get(header, set()) or endpoint.fragment:
+        raise ValueError("Credentials require HTTPS and an approved API host/header")
     data = json.dumps(payload).encode() if payload is not None and not isinstance(payload, bytes) else payload
     req = urllib.request.Request(url, data=data, method=method, headers={
         header: token, "Content-Type": content_type, "Accept": "application/json", "User-Agent": "wow-forever-addons-release"})
@@ -151,13 +151,8 @@ def find_release(github, tag):
 def api_error_message(error):
     endpoint = urllib.parse.urlsplit(error.url)
     message = f"Release API request failed: {endpoint.netloc}{endpoint.path} returned HTTP {error.code}"
-    try:
-        body = json.loads(error.read(8192))
-        details = {key: body[key] for key in ("message", "error", "errors") if key in body} if isinstance(body, dict) else {}
-        if details:
-            message += ": " + json.dumps(details, ensure_ascii=True)
-    except (ValueError, TypeError, OSError):
-        pass
+    # Responses can echo credentials, including encoded values that masking misses.
+    # Keep diagnostics to the endpoint/status; never log remote response bodies.
     for name in ("GITHUB_TOKEN", "CURSE_FORGE_DEPLOYMENT_TOKEN"):
         secret = os.environ.get(name)
         if secret:
@@ -165,13 +160,21 @@ def api_error_message(error):
     return message[:2000] + "; inspect release assets before retrying an upload"
 
 
-def publish(output):
+def publish(output, expected_tag=None):
     info = json.loads((output / "release.json").read_text(encoding="utf-8"))
+    fields = {"addon", "version", "tag", "commit", "archive", "sha256"}
+    if not isinstance(info, dict) or set(info) != fields or not all(isinstance(value, str) for value in info.values()):
+        raise ValueError("Invalid release artifact metadata schema")
+    expected_tag = expected_tag or os.environ.get("RELEASE_TAG")
+    if not expected_tag or info["tag"] != expected_tag:
+        raise ValueError("Artifact does not match the workflow's requested release tag")
+    if not re.fullmatch(r"[0-9a-f]{40}", info["commit"]) or not re.fullmatch(r"[0-9a-f]{64}", info["sha256"]):
+        raise ValueError("Invalid release artifact commit/hash")
     addon, version = target(info["tag"])
     if (info["addon"], info["version"]) != (addon["name"], version):
         raise ValueError("Artifact does not match its release tag")
     archive = inside(output, info["archive"])
-    if archive.name != f"{addon['name']}-{version}.zip" or hashlib.sha256(archive.read_bytes()).hexdigest() != info["sha256"]:
+    if info["archive"] != f"{addon['name']}-{version}.zip" or hashlib.sha256(archive.read_bytes()).hexdigest() != info["sha256"]:
         raise ValueError("Release artifact hash/name mismatch")
     commit = git("rev-parse", f"refs/tags/{info['tag']}^{{commit}}").strip()
     if commit != info["commit"]:
@@ -262,7 +265,7 @@ def main():
         prepare(args.tag, args.output, check_git=args.action != "preview")
     else:
         try:
-            publish(args.output)
+            publish(args.output, args.tag)
         except urllib.error.HTTPError as error:
             raise SystemExit(api_error_message(error)) from None
 
