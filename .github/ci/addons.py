@@ -95,6 +95,20 @@ def registry():
     return parse_config(CONFIG.read_text(encoding="utf-8"))
 
 
+def sync_release_choices(addons=None, workflow=None, check=False):
+    workflow = workflow or ROOT / ".github/workflows/next-release.yml"
+    text = workflow.read_text(encoding="utf-8")
+    choices = "".join(f"          - {a['name']}\n" for a in (registry() if addons is None else addons))
+    pattern = r"(?m)(        # BEGIN ADDON CHOICES\n).*?(        # END ADDON CHOICES)"
+    updated, count = re.subn(pattern, lambda match: match[1] + choices + match[2], text, flags=re.S)
+    if count != 1:
+        raise ValueError("Missing generated addon choice markers")
+    if check and text != updated:
+        raise ValueError("Addon dropdown is stale; run python .github/ci/next_release.py sync")
+    if not check:
+        workflow.write_text(updated, encoding="utf-8")
+
+
 def git(*args):
     return subprocess.check_output(["git", *args], cwd=ROOT).decode("utf-8")
 
@@ -176,6 +190,9 @@ def register(path, status):
     encoded = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
     parse_config(encoded)
     CONFIG.write_text(encoded, encoding="utf-8")
+    workflow = ROOT / ".github/workflows/next-release.yml"
+    if workflow.is_file():
+        sync_release_choices(data["addons"], workflow)
     print(f"Registered {entry['name']}; review addons.yml before committing")
 
 
