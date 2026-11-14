@@ -83,7 +83,10 @@ class ReleaseTests(unittest.TestCase):
         (self.root / "Example/Main.lua").write_text(source, encoding="utf-8")
         release.prepare("Example/v1.2.3", self.output, check_git=False)
         def check(addon, runtime_path):
-            self.assertEqual((runtime_path / "Main.lua").read_text(encoding="utf-8"), "local name = ... return name\n")
+            packaged = (runtime_path / "Main.lua").read_text(encoding="utf-8")
+            self.assertNotIn("internal comment", packaged)
+            self.assertIn("local name=...", packaged)
+            self.assertIn("return name", packaged)
             self.assertFalse((runtime_path / "tests").exists())
             self.assertFalse((runtime_path / "README.md").exists())
             self.assertEqual((self.root / "Example/Main.lua").read_text(encoding="utf-8"), source)

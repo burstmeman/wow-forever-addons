@@ -31,6 +31,11 @@ jobs:
           python-version: '3.12'
       - run: >-
           python -m pip install --only-binary=:all: -r .github/ci/requirements.txt
+      - name: Prepare pinned LuaSrcDiet for tooling tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends lua5.1
+          python .github/ci/lua_minify.py setup
       - run: python -m unittest discover -s .github/ci -p 'test_*.py' -v
       - id: plan
         run: python .github/ci/addons.py plan
@@ -60,6 +65,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends lua5.1 luarocks
           sudo luarocks --lua-version=5.1 install luacheck 1.2.0-1
+      - name: Prepare pinned LuaSrcDiet
+        run: python .github/ci/lua_minify.py setup
       - name: Check runtime API policy
         run: python .github/ci/security.py "$ADDON"
       - name: Audit addon test dependencies

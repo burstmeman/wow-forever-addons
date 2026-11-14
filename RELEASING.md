@@ -151,6 +151,7 @@ For a local package preview without requiring a Git tag:
 
 ```sh
 python -m pip install -r .github/ci/requirements.txt
+python .github/ci/lua_minify.py setup
 python .github/ci/release.py preview --tag CompactAddonButtons/v1.2.8 --output .tools/release-preview
 python .github/ci/release.py verify --output .tools/release-preview
 ```
@@ -161,8 +162,19 @@ builds and verifies a temporary package without a tag or deployment credentials.
 
 ## Minified runtime and package checks
 
-Release packaging removes Lua comments and collapses whitespace outside string
-literals. It preserves names, operators, string bytes, localization and manifest
+Release packaging uses upstream [LuaSrcDiet 1.0.0-2](https://luarocks.org/modules/jirutka/luasrcdiet/1.0.0-2)
+to remove comments and unnecessary whitespace outside string literals. The source
+package is pinned by SHA-256 in `lua_minify.py`; setup verifies it before loading
+any module. Only required modules and upstream license files are unpacked into
+ignored `.tools/luasrcdiet/`. No custom Lua parser/minifier is maintained here.
+
+CI installs native Lua 5.1 and prepares the pinned package before tooling tests or
+addon packaging; the publisher job neither downloads nor executes the minifier.
+For local preview, install Lua 5.1 and run the setup command above. Windows may use
+the existing Lupa 2.8 Lua 5.1 test runtime instead. There is no unchecked fallback.
+
+Source-token and Lua 5.1 binary equivalence checks must both pass before accepting
+the result. The selected options preserve names, operators, string bytes, localization and manifest
 load order; it does not rename globals/locals, obfuscate code or emit bytecode.
 Repository sources stay readable. Packaged traceback line numbers can differ
 from repository sources because removed comments/whitespace change line counts.
