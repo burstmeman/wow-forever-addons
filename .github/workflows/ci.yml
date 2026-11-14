@@ -1,0 +1,135 @@
+name: Addon CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: addon-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Validate registry and select addons
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      has_addons: ${{ steps.plan.outputs.has_addons }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: >-
+          python -m pip install --only-binary=:all: -r .github/ci/requirements.txt
+      - run: python -m unittest discover -s .github/ci -p test_ci.py -v
+      - id: plan
+        run: python .github/ci/addons.py plan
+
+  addon:
+    name: Tests and Lua security (${{ matrix.addon }})
+    needs: changes
+    if: needs.changes.outputs.has_addons == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ADDON: ${{ matrix.addon }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: >-
+          python -m pip install --only-binary=:all: -r .github/ci/requirements.txt
+      - name: Install Lua static analysis
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends lua5.1 luarocks
+          sudo luarocks --lua-version=5.1 install luacheck 1.2.0-1
+      - name: Check runtime API policy
+        run: python .github/ci/security.py "$ADDON"
+      - name: Audit addon test dependencies
+        run: python .github/ci/addons.py audit "$ADDON"
+      - name: Run addon tests
+        run: python .github/ci/addons.py test "$ADDON"
+
+  dependencies:
+    name: CI dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: >-
+          python -m pip install --only-binary=:all: -r .github/ci/requirements.txt
+      - run: python -m pip_audit --strict --progress-spinner off -r .github/ci/requirements.txt
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITLEAKS_VERSION: '8.30.1'
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+
+  workflows:
+    name: Workflow security
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
+        with:
+          advanced-security: false
+          version: '1.32.0'
+
+  required:
+    name: CI
+    if: always()
+    needs: [changes, addon, dependencies, secrets, workflows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      JOB_RESULTS: ${{ toJSON(needs) }}
+    steps:
+      - name: Require successful checks
+        run: |
+          python3 - <<'PY'
+          import json, os
+          jobs = json.loads(os.environ["JOB_RESULTS"])
+          failed = [name for name, job in jobs.items()
+                    if job["result"] != "success"
+                    and not (name == "addon" and job["result"] == "skipped"
+                             and jobs["changes"]["outputs"].get("has_addons") == "false")]
+          if failed:
+              raise SystemExit("Failed or incomplete checks: " + ", ".join(failed))
+          print("All applicable checks passed")
+          PY
