@@ -9,8 +9,8 @@ local panel, content, scroll, empty, footer, search, modeButton
 local header, close, scan, title, languageLabel, languageDropdown
 local settingsMode = false
 local query = ""
-local WIDTH, HEIGHT, CELL, COLUMNS = 384, 394, 44, 5
-local PADDING, MAX_ROWS = 8, 6
+local WIDTH, HEIGHT, CELL, COLUMNS = 384, 394, 36, 5
+local PADDING, MAX_ROWS = 4, 6
 
 local function savePosition()
     local point, _, relativePoint, x, y = panel:GetPoint()
@@ -62,6 +62,7 @@ function Window.PositionPopup()
 end
 
 local function layout(count)
+    panel:SetBackdropColor(0.055, 0.05, 0.045, settingsMode and 0.97 or 0.88)
     header:SetShown(settingsMode)
     close:SetShown(settingsMode)
     search:SetShown(settingsMode)

@@ -4,7 +4,7 @@
 
 A standalone minimap button drawer for **World of Warcraft: Forever**, Interface **16001**. No required libraries or other addons.
 
-Version **1.2.2**.
+Version **1.2.3**.
 
 ## Installation
 
@@ -29,7 +29,7 @@ The `tests` directory and this README are development files and may be omitted w
 | `/cab settings` | Toggle the exceptions list |
 | `/cab refresh` | Rescan buttons |
 
-The popup contains only addon icons and fits its size to the number of visible buttons: up to five columns and six rows, with scrolling for larger collections. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently.
+The popup contains only addon icons in a tight grid with a lightly translucent background and fits its size to the number of visible buttons: up to five columns and six rows, with scrolling for larger collections. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently.
 
 Settings, language preference, exceptions, and settings-window/minimap positions are saved per account. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
 

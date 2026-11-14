@@ -81,7 +81,7 @@ assert(alpha:GetScript("OnDragStart") == nil)
 
 ns.App.Toggle(false)
 assert(ns.Window.GetFrame():IsShown() and alpha:IsVisible())
-assert(ns.Window.GetFrame():GetWidth() == 192 and ns.Window.GetFrame():GetHeight() == 60, "four buttons need only one compact row")
+assert(ns.Window.GetFrame():GetWidth() == 152 and ns.Window.GetFrame():GetHeight() == 44, "four buttons need only one compact row")
 local popupPoint, popupRelative, popupRelativePoint, popupX = ns.Window.GetFrame():GetPoint()
 assert(popupPoint == "BOTTOMLEFT" and popupRelative == ns.MinimapButton.GetFrame()
     and popupRelativePoint == "BOTTOMRIGHT" and popupX == 6, "popup must be next to the launcher")
@@ -229,10 +229,10 @@ assert(math.abs(launcherX - 57) < 0.01 and math.abs(launcherY - 57) < 0.01)
 for i = 1, 35 do button("Extra" .. i .. "MinimapButton") end
 ns.App.Scan()
 ns.App.Toggle(false)
-assert(ns.Window.GetFrame():GetWidth() == 256 and ns.Window.GetFrame():GetHeight() == 280)
+assert(ns.Window.GetFrame():GetWidth() == 208 and ns.Window.GetFrame():GetHeight() == 224)
 local popupScroll = CompactAddonButtonsScroll
-assert(popupScroll.child:GetHeight() > 264)
+assert(popupScroll.child:GetHeight() > 216)
 
 -- An empty popup remains small and contains a useful empty-state message.
 for _, entry in ipairs(ns.Buttons.All()) do ns.App.SetException(entry.key, true) end
-assert(ns.Window.GetFrame():GetWidth() == 210 and ns.Window.GetFrame():GetHeight() == 60)
+assert(ns.Window.GetFrame():GetWidth() == 210 and ns.Window.GetFrame():GetHeight() == 44)

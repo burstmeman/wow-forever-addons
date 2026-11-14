@@ -4,7 +4,7 @@
 ## Notes: A tidy home for addon minimap buttons, with per-button exceptions.
 ## Notes-ruRU: Собирает кнопки аддонов в одном окне с настраиваемыми исключениями.
 ## Author: burstmeman
-## Version: 1.2.2
+## Version: 1.2.3
 ## SavedVariables: CompactAddonButtonsDB, BetterAddonButtonsDB
 
 Settings.lua
