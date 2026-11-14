@@ -1,6 +1,7 @@
 """Release routing, packaging, flavor resolution, and duplicate-upload protection."""
 import copy
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -91,16 +92,26 @@ class ReleaseTests(unittest.TestCase):
         info["commit"] = "a" * 40
         (self.output / "release.json").write_text(json.dumps(info), encoding="utf-8")
         self.assets, self.uploads = [], []
+        self.release = {"id": 10, "body": "Release notes", "prerelease": False, "draft": True}
+        self.calls = []
         patch.object(release, "git", return_value="a" * 40).start()
         patch.object(release.subprocess, "run").start()
         patch.dict(os.environ, GITHUB_REPOSITORY="owner/repo", GITHUB_TOKEN="test-github", CURSE_FORGE_DEPLOYMENT_TOKEN="test-curseforge").start()
 
         def api(url, token, header, method="GET", payload=None, content_type="application/json"):
+            self.calls.append((url, method, payload))
             if "/releases/tags/" in url:
-                return {"id": 10, "body": "Release notes", "prerelease": False}
+                return self.release
+            if url.endswith("/releases/10") and method == "PATCH":
+                self.assertTrue(any(a["name"].startswith("curseforge-123-") for a in self.assets))
+                self.assertFalse(any(a["name"].startswith("curseforge-pending-") for a in self.assets))
+                self.release.update(payload)
+                self.release["immutable"] = True
+                return self.release
             if "/assets?per_page=" in url:
                 return list(self.assets)
             if url.startswith("https://uploads.github.com/"):
+                self.assertFalse(self.release.get("immutable"), "all assets must precede publication")
                 name = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)["name"][0]
                 item = {"id": len(self.assets) + 1, "name": name, "digest": "sha256:" + hashlib.sha256(payload).hexdigest()}
                 self.assets.append(item)
@@ -114,7 +125,7 @@ class ReleaseTests(unittest.TestCase):
                 self.assertTrue(any(a["name"].startswith("curseforge-pending-") for a in self.assets))
                 self.assertEqual(header, "X-Api-Token")
                 self.assertIn(b'"gameVersions": [99]', payload)
-                self.assertIn(b'"changelog": "Release notes"', payload)
+                self.assertIn(json.dumps({"changelog": self.release["body"]})[1:-1].encode(), payload)
                 self.uploads.append(url)
                 if timeout:
                     raise TimeoutError("Ambiguous response")
@@ -129,6 +140,82 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(len(self.uploads), 1)
         self.assertFalse(any(a["name"].startswith("curseforge-pending-") for a in self.assets))
         self.assertTrue(any(a["name"].startswith("curseforge-123-") for a in self.assets))
+        self.assertTrue(self.release["immutable"])
+        self.assertFalse(self.release["draft"])
+
+    def test_immutable_release_without_receipt_fails_before_upload(self):
+        self.setup_publish()
+        self.release.update(draft=False, immutable=True)
+        with self.assertRaisesRegex(ValueError, "already immutable"):
+            release.publish(self.output)
+        self.assertEqual(self.assets, [])
+        self.assertEqual(self.uploads, [])
+
+    def test_tag_only_release_is_created_as_draft(self):
+        self.setup_publish()
+        original = release.request_json.side_effect
+        def missing_release(url, token, header, method="GET", payload=None, content_type="application/json"):
+            if "/releases/tags/" in url:
+                raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+            if "/releases?per_page=" in url:
+                return []
+            if url.endswith("/releases") and method == "POST":
+                self.assertTrue(payload["draft"])
+                self.release.update(payload)
+                return self.release
+            return original(url, token, header, method, payload, content_type)
+        with patch.object(release, "request_json", side_effect=missing_release):
+            release.publish(self.output)
+        self.assertEqual(len(self.uploads), 1)
+        self.assertTrue(self.release["immutable"])
+
+    def test_pending_cleanup_failure_resumes_from_success_receipt(self):
+        self.setup_publish()
+        original = release.request_json.side_effect
+        def fail_delete(url, token, header, method="GET", payload=None, content_type="application/json"):
+            if method == "DELETE":
+                raise TimeoutError("Pending marker cleanup failed")
+            return original(url, token, header, method, payload, content_type)
+        with patch.object(release, "request_json", side_effect=fail_delete):
+            with self.assertRaises(TimeoutError):
+                release.publish(self.output)
+        release.publish(self.output)
+        self.assertEqual(len(self.uploads), 1)
+        self.assertTrue(self.release["immutable"])
+
+    def test_publication_failure_can_resume_without_second_curseforge_upload(self):
+        self.setup_publish()
+        original = release.request_json.side_effect
+        def fail_publish(url, token, header, method="GET", payload=None, content_type="application/json"):
+            if method == "PATCH":
+                raise TimeoutError("Publication response lost")
+            return original(url, token, header, method, payload, content_type)
+        with patch.object(release, "request_json", side_effect=fail_publish):
+            with self.assertRaises(TimeoutError):
+                release.publish(self.output)
+        release.publish(self.output)
+        self.assertEqual(len(self.uploads), 1)
+        self.assertTrue(self.release["immutable"])
+
+    def test_finds_drafts_missing_from_tag_endpoint(self):
+        draft = {"id": 10, "tag_name": "Example/v1.2.3", "draft": True}
+        def api(path):
+            if path.startswith("/releases/tags/"):
+                raise urllib.error.HTTPError("https://api.github.com", 404, "Not Found", {}, None)
+            self.assertEqual(path, "/releases?per_page=100&page=1")
+            return [draft]
+        self.assertEqual(release.find_release(api, draft["tag_name"]), draft)
+
+    def test_error_identifies_api_and_redacts_credentials(self):
+        with patch.dict(os.environ, CURSE_FORGE_DEPLOYMENT_TOKEN="private-test-token"):
+            error = urllib.error.HTTPError("https://uploads.github.com/repos/owner/repo/releases/10/assets?name=file.zip", 422,
+                "Unprocessable Entity", {}, io.BytesIO(json.dumps({"message": "Cannot upload assets to an immutable release", "errors": ["private-test-token"]}).encode()))
+            message = release.api_error_message(error)
+        self.assertIn("uploads.github.com/repos/owner/repo/releases/10/assets", message)
+        self.assertIn("HTTP 422", message)
+        self.assertIn("immutable release", message)
+        self.assertNotIn("private-test-token", message)
+        self.assertNotIn("?name", message)
 
     def test_timeout_blocks_automatic_resubmission(self):
         self.setup_publish(timeout=True)

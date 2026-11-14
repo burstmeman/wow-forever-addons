@@ -39,6 +39,13 @@ class FakeAPI:
         raise AssertionError(path)
 
     def call(self, path, method="GET", payload=None):
+        if path.startswith("/releases/tags/"):
+            found = self.optional(path)
+            if found:
+                return found
+            raise urllib.error.HTTPError("https://api.github.com" + path, 404, "Not Found", {}, None)
+        if path.startswith("/releases?per_page="):
+            return list(self.releases.values())
         if path == "/branches/main":
             return {"commit": {"sha": "a" * 40, "commit": {"tree": {"sha": "c" * 40}}}}
         if path == "/git/trees":
@@ -67,7 +74,8 @@ class FakeAPI:
         if path.startswith("/compare/"):
             return {"files": [{"filename": p, "sha": next_release.blob_sha(c)} for p, c in self.files.items()]}
         if path == "/releases":
-            self.releases[payload["tag_name"]] = {"id": 1}
+            assert payload["draft"] is True
+            self.releases[payload["tag_name"]] = {"id": 1, **payload}
             return {"id": 1}
         if path == "/actions/workflows/release.yml/dispatches":
             self.dispatches.append(payload)
@@ -160,6 +168,9 @@ class NextReleaseTests(unittest.TestCase):
         next_release.finalize(self.api, {"number": 1})
         self.assertEqual(self.api.tags["Example/v1.2.9"]["object"]["sha"], "d" * 40)
         self.assertEqual(self.api.dispatches, [{"ref": "main", "inputs": {"tag": "Example/v1.2.9", "publish": "true"}}])
+        self.assertTrue(self.api.releases["Example/v1.2.9"]["draft"])
+        next_release.finalize(self.api, {"number": 1})
+        self.assertEqual(len(self.api.releases), 1)
 
     def test_extra_code_cannot_be_auto_released(self):
         self.prepare()

@@ -9,7 +9,7 @@ import urllib.error
 import urllib.parse
 
 from addons import registry, sync_release_choices
-from release import channel, request_json
+from release import channel, find_release, request_json
 
 VERSION_LINE = re.compile(r"(?m)^(## Version:[ \t]*)([^\r\n]+)(\r?)$")
 
@@ -174,10 +174,10 @@ def finalize(api, event):
             raise ValueError("Release tag already points to a different commit")
     else:
         api.call("/git/refs", "POST", {"ref": "refs/tags/" + tag, "sha": pr["merge_commit_sha"]})
-    if not api.optional("/releases/tags/" + urllib.parse.quote(tag, safe="")):
+    if not find_release(api.call, tag):
         api.call("/releases", "POST", {"tag_name": tag, "name": f"{addon['name']} {intent['version']}",
             "body": intent["notes"] or f"Release {addon['name']} {intent['version']}.",
-            "prerelease": channel(addon, intent["version"]) != "release"})
+            "prerelease": channel(addon, intent["version"]) != "release", "draft": True})
     # Token-generated tag/release events do not start workflows; dispatch explicitly.
     api.call("/actions/workflows/release.yml/dispatches", "POST", {"ref": "main", "inputs": {"tag": tag, "publish": "true"}})
     print(f"Created {tag} and dispatched its release workflow")
