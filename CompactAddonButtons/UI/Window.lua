@@ -10,6 +10,7 @@ local header, close, scan, title, languageLabel, languageDropdown
 local columnsLabel, columnsDropdown
 local settingsMode = false
 local query = ""
+local textLocale, textRevision, menuPreference, menuColumns
 local WIDTH, HEIGHT, CELL = 384, 432, 32
 local PADDING = 3
 
@@ -101,9 +102,11 @@ local function layout(count)
     if bar then bar:SetShown(settingsMode) end
 end
 
-function Window.Refresh()
+function Window.Refresh(force)
     if not panel or InCombatLockdown() then return end
     Window.RefreshTexts()
+    -- Keep labels current, but defer hidden layout work until the next opening.
+    if not force and not panel:IsShown() then return end
     local visible = {}
     for _, entry in ipairs(ns.Buttons.All()) do
         if settingsMode then
@@ -154,7 +157,7 @@ local function setMode(value)
         panel:SetPoint(point, UIParent, relative, x, y)
     end
     scroll:SetVerticalScroll(0)
-    Window.Refresh()
+    Window.Refresh(true)
 end
 
 function Window.Toggle(settings)
@@ -273,12 +276,18 @@ end
 function Window.GetFrame() return panel end
 function Window.RefreshTexts()
     if not panel then return end
-    title:SetText(T("TITLE"))
-    empty:SetText(T("EMPTY"))
-    search.hint:SetText(T("SEARCH"))
-    scan:SetText(T("SCAN"))
-    languageLabel:SetText(T("LANGUAGE"))
-    languageDropdown:GenerateMenu()
-    columnsLabel:SetText(T("BUTTONS_PER_ROW"))
-    columnsDropdown:GenerateMenu()
+    local locale, revision = ns.Localization.GetLocale(), ns.Localization.GetRevision()
+    local preference, columns = ns.Settings.GetLanguage(), ns.Settings.GetColumns()
+    local changed = locale ~= textLocale or revision ~= textRevision
+    if changed then
+        title:SetText(T("TITLE"))
+        empty:SetText(T("EMPTY"))
+        search.hint:SetText(T("SEARCH"))
+        scan:SetText(T("SCAN"))
+        languageLabel:SetText(T("LANGUAGE"))
+        columnsLabel:SetText(T("BUTTONS_PER_ROW"))
+    end
+    if changed or preference ~= menuPreference then languageDropdown:GenerateMenu() end
+    if changed or columns ~= menuColumns then columnsDropdown:GenerateMenu() end
+    textLocale, textRevision, menuPreference, menuColumns = locale, revision, preference, columns
 end

@@ -4,6 +4,7 @@ ns.Localization = Localization
 local packs, order, aliases = {}, {}, {}
 local active, preference, clientLocale = "enUS", "auto", "enUS"
 local onChanged
+local revision = 0
 
 function Localization.IsSupported(locale)
     return packs[aliases[locale] or locale] ~= nil
@@ -39,6 +40,7 @@ function Localization.Register(locale, name, translations, localeAliases)
     pack.name = name
     for key, value in pairs(translations) do pack.strings[key] = value end
     for _, alias in ipairs(localeAliases or {}) do aliases[alias] = locale end
+    revision = revision + 1
     active = Localization.Resolve(preference, clientLocale)
     if onChanged then onChanged() end
     return true
@@ -50,6 +52,7 @@ function Localization.Text(key)
 end
 
 function Localization.GetLocale() return active end
+function Localization.GetRevision() return revision end
 function Localization.GetLanguages()
     local result = {}
     for _, locale in ipairs(order) do

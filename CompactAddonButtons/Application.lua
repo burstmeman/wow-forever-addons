@@ -2,19 +2,30 @@ local _, ns = ...
 local App = {}
 ns.App = App
 local ready, initialized, pending = false, false, false
+local orderDirty = false
+
+local function sortButtons()
+    if not orderDirty then return end
+    ns.Buttons.Sort()
+    orderDirty = false
+end
 
 local function register(key, label, button)
     local existing = ns.Buttons.Find(button)
     if existing then
         if existing.key:find("^frame:") and key:find("^lib:") then
             local oldKey = existing.key
-            if ns.Buttons.Rename(existing, key, label) then ns.Settings.RenameException(oldKey, key) end
+            if ns.Buttons.Rename(existing, key, label) then
+                ns.Settings.RenameException(oldKey, key)
+                orderDirty = true
+            end
         end
         return false
     end
     if ns.Discovery.IsExcluded(button) then return false end
     local entry = ns.Buttons.Add(key, label, button)
     if not entry then return false end
+    orderDirty = true
     ns.Collection.Watch(entry)
     return true
 end
@@ -46,7 +57,7 @@ function App.Scan()
     if not ready then return end
     if InCombatLockdown() then pending = true; return end
     ns.Discovery.Scan(register)
-    ns.Buttons.Sort()
+    sortButtons()
     App.Apply()
 end
 
@@ -95,7 +106,7 @@ function App.RegisterButton(key, label, button)
         or not button:IsObjectType("Frame") then return false end
     if label ~= nil and (type(label) ~= "string" or label == "") then return false end
     local added = register("custom:" .. key, label or key, button)
-    if added and ready then ns.Buttons.Sort(); App.Apply() end
+    if added and ready then sortButtons(); App.Apply() end
     return added
 end
 

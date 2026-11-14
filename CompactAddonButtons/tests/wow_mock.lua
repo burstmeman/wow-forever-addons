@@ -1,4 +1,5 @@
 local combat, frames = false, {}
+local stats = { hooks = 0, menus = 0, choices = 0, textWrites = 0, pointWrites = 0 }
 local methods = {}
 local function noop() end
 for _, method in ipairs({ "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor",
@@ -18,7 +19,7 @@ function methods:IsObjectType(kind)
 end
 function methods:IsProtected() return self.protected end
 function methods:SetParent(parent) self.parent = parent end
-function methods:SetPoint(...) self.points[#self.points + 1] = { ... } end
+function methods:SetPoint(...) stats.pointWrites = stats.pointWrites + 1; self.points[#self.points + 1] = { ... } end
 function methods:ClearAllPoints() self.points = {} end
 function methods:GetPoint(index) return unpack(self.points[index or 1] or {}) end
 function methods:GetNumPoints() return #self.points end
@@ -57,7 +58,7 @@ end
 function methods:SetShown(shown) if shown then self:Show() else self:Hide() end end
 function methods:IsShown() return self.shown end
 function methods:IsVisible() return self.shown and (not self.parent or self.parent:IsVisible()) end
-function methods:SetText(value) self.value = value end
+function methods:SetText(value) stats.textWrites = stats.textWrites + 1; self.value = value end
 function methods:GetText() return self.value or "" end
 function methods:SetChecked(value) self.checked = value end
 function methods:GetChecked() return self.checked end
@@ -77,6 +78,7 @@ end
 function methods:CreateFontString() return CreateFrame("FontString", nil, self) end
 function methods:CreateTexture() return CreateFrame("Texture", nil, self) end
 function hooksecurefunc(object, method, callback)
+    stats.hooks = stats.hooks + 1
     local original = object[method]
     object[method] = function(self, ...)
         original(self, ...)
@@ -96,7 +98,7 @@ GetCursorPosition = function() return 250, 200 end
 math.atan2 = math.atan2 or function(y, x) return math.atan(y / x) end
 
 
-TestUI = { frames = frames, SetCombat = function(value) combat = value end }
+TestUI = { frames = frames, stats = stats, SetCombat = function(value) combat = value end }
 
 -- Model an overlapping mouse-enabled ancestor, as with the popup's backdrop panel.
 function TestUI.MouseTarget(frame)
@@ -115,10 +117,12 @@ end
 
 function methods:SetupMenu(builder) self.menuBuilder = builder end
 function methods:GenerateMenu()
+    stats.menus = stats.menus + 1
     local owner = self
     self.choices = {}
     local menu = {}
     function menu:CreateRadio(label, selected, choose, value)
+        stats.choices = stats.choices + 1
         local choice = { label = label, selected = selected, choose = choose, value = value }
         function choice:SetEnabled(enabled) self.enabled = enabled end
         owner.choices[#owner.choices + 1] = choice
