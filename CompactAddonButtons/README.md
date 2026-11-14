@@ -4,7 +4,7 @@
 
 A standalone minimap button drawer for **World of Warcraft: Forever**, Interface **16001**. No required libraries or other addons.
 
-Version **1.2.8**.
+Version **1.2.9**.
 
 ## Installation
 
