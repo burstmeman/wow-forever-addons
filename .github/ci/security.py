@@ -108,7 +108,7 @@ def check(addon, lint=True):
         raise ValueError("\n".join(errors))
     if lint:
         # No config files or inline pragmas from addon code may weaken the allowlist.
-        command = ["luacheck", *map(str, files), "--no-config", "--no-inline", "--std", "none",
+        command = ["luacheck", *map(str, files), "--no-config", "--no-default-config", "--std", "none",
                    "--only", "0", "1", "--read-globals", *READ_GLOBALS,
                    "--globals", *allowances.get("globals", [])]
         subprocess.run(command, check=True)
