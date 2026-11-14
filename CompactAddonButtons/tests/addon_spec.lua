@@ -93,8 +93,11 @@ ns.MinimapButton.GetFrame().centerX, ns.MinimapButton.GetFrame().centerY, ns.Min
 ns.Window.Refresh()
 assert(ns.Window.GetFrame():GetPoint() == "TOPRIGHT", "anchor selection respects effective UI scale")
 ns.MinimapButton.GetFrame().centerX, ns.MinimapButton.GetFrame().centerY, ns.MinimapButton.GetFrame().scale = nil, nil, nil
-alpha.scripts.OnClick(alpha, "RightButton")
-alpha.scripts.OnEnter(alpha)
+assert(TestUI.MouseTarget(alpha) == alpha, "the popup panel must not intercept collected button input")
+assert(TestUI.MouseTarget(beta) == beta and TestUI.MouseTarget(custom) == custom,
+    "buttons with different original strata must remain clickable in the drawer")
+TestUI.MouseTarget(alpha).scripts.OnClick(alpha, "RightButton")
+TestUI.MouseTarget(alpha).scripts.OnEnter(alpha)
 assert(clicked == 1 and hovered == 1, "real scripts must be preserved")
 local slot = ns.Buttons.Find(alpha).slot
 local unnecessaryHides = 0

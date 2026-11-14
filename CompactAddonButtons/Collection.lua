@@ -20,6 +20,9 @@ function Collection.Anchor(entry)
     entry.changing = true
     local button = entry.button
     button:SetParent(entry.slot)
+    -- Keep the original button above the mouse-enabled popup and its grid cell.
+    button:SetFrameStrata(entry.slot:GetFrameStrata())
+    button:SetFrameLevel(entry.slot:GetFrameLevel() + 1)
     button:ClearAllPoints()
     button:SetPoint("CENTER", entry.slot, "CENTER", 0, 0)
     entry.changing = false

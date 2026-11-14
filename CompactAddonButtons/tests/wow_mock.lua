@@ -2,7 +2,7 @@ local combat, frames = false, {}
 local methods = {}
 local function noop() end
 for _, method in ipairs({ "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor",
-    "SetClampedToScreen", "SetMovable", "EnableMouse", "RegisterForDrag",
+    "SetClampedToScreen", "SetMovable", "RegisterForDrag",
     "RegisterForClicks", "SetHighlightTexture", "SetTexture", "SetTexCoord", "SetJustifyH",
     "SetHitRectInsets", "SetTextColor", "SetAutoFocus", "SetMaxLetters", "SetOwner", "AddLine",
     "StartMoving", "StopMovingOrSizing" }) do methods[method] = noop end
@@ -31,6 +31,8 @@ function methods:SetFrameLevel(level) self.frameLevel = level end
 function methods:GetFrameLevel() return self.frameLevel or (self.parent and self.parent:GetFrameLevel() + 1) or 0 end
 function methods:SetFrameStrata(strata) self.frameStrata = strata end
 function methods:GetFrameStrata() return self.frameStrata or (self.parent and self.parent:GetFrameStrata()) or "MEDIUM" end
+function methods:EnableMouse(enabled) self.mouseEnabled = enabled end
+function methods:IsMouseEnabled() return self.mouseEnabled == true or (self.mouseEnabled == nil and self.kind == "Button") end
 function methods:GetEffectiveScale() return self.scale or 1 end
 function methods:GetCenter() return self.centerX or 200, self.centerY or 200 end
 function methods:GetNormalTexture() return self.texture end
@@ -90,6 +92,21 @@ math.atan2 = math.atan2 or function(y, x) return math.atan(y / x) end
 
 
 TestUI = { frames = frames, SetCombat = function(value) combat = value end }
+
+-- Model an overlapping mouse-enabled ancestor, as with the popup's backdrop panel.
+function TestUI.MouseTarget(frame)
+    if not frame:IsVisible() then return nil end
+    local strata = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5,
+        FULLSCREEN = 6, FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
+    local target, parent = frame, frame:GetParent()
+    while parent do
+        local above = strata[parent:GetFrameStrata()] > strata[target:GetFrameStrata()]
+            or (parent:GetFrameStrata() == target:GetFrameStrata() and parent:GetFrameLevel() >= target:GetFrameLevel())
+        if parent:IsMouseEnabled() and above then target = parent end
+        parent = parent:GetParent()
+    end
+    return target
+end
 
 function methods:SetupMenu(builder) self.menuBuilder = builder end
 function methods:GenerateMenu()
