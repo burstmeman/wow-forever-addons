@@ -76,11 +76,15 @@ New addons reuse the same workflow. After registration, add their own `release`
 configuration and CurseForge project ID; review the supported game versions and
 package patterns for that addon. Unconfigured addons cannot be released accidentally.
 The `files` list uses Python path glob patterns relative to the addon directory.
-Only matched files are included, plus the repository license. Test directories,
-hidden files, node_modules, and symbolic links are rejected. Every Lua file listed
-by the manifest must be present in the ZIP. The ZIP has a single installable root
-folder matching the addon's directory name; for CompactAddonButtons this includes
-`Media/Icon.tga` and excludes the development README, PNG preview, and tests.
+Only matched runtime files are included, plus the repository license. Test
+directories, hidden files, node_modules, symbolic links and non-runtime file types
+are rejected. Code globs are allowed, but every packaged Lua/XML source must be
+listed by the selected manifest, and every manifest entry must be present. Extra
+manifests fail the build. Media/font assets must use exact paths instead of globs,
+so adding a preview or source image cannot silently add it to the release.
+The ZIP has a single installable root folder matching the addon's directory name;
+CompactAddonButtons includes only its manifest, 16 Lua files, two runtime TGA
+textures and LICENSE. README files, preview PNGs, tests and CI tooling are excluded.
 
 ## One-time secret
 
@@ -105,6 +109,8 @@ already exist on CurseForge and the token owner must have access to it.
    and security-checks only that addon, and builds a deterministic ZIP. A separate
    publishing job downloads that run's immutable artifact by ID, verifies its
    hash/tag/commit, and uses deployment code/configuration checked out from `main`.
+   Before the artifact is uploaded, the build verifies its exact file inventory
+   and contents, extracts the runtime into a temporary directory and tests it.
 4. The job attaches the ZIP to the draft GitHub Release (creating a draft if the tag
    was pushed directly) and uploads the same ZIP to the configured CurseForge project.
    GitHub Release notes become the CurseForge changelog. Direct tag publication
@@ -145,8 +151,46 @@ For a local package preview without requiring a Git tag:
 
 ```sh
 python -m pip install -r .github/ci/requirements.txt
+python .github/ci/lua_minify.py setup
 python .github/ci/release.py preview --tag CompactAddonButtons/v1.2.8 --output .tools/release-preview
+python .github/ci/release.py verify --output .tools/release-preview
 ```
+
+Install the addon's test requirements before running `verify` locally. PR CI also
+runs `release.py check --addon NAME` for selected release-enabled addons. This
+builds and verifies a temporary package without a tag or deployment credentials.
+
+## Minified runtime and package checks
+
+Release packaging uses upstream [LuaSrcDiet 1.0.0-2](https://luarocks.org/modules/jirutka/luasrcdiet/1.0.0-2)
+to remove comments and unnecessary whitespace outside string literals. The source
+package is pinned by SHA-256 in `lua_minify.py`; setup verifies it before loading
+any module. Only required modules and upstream license files are unpacked into
+ignored `.tools/luasrcdiet/`. No custom Lua parser/minifier is maintained here.
+
+CI installs native Lua 5.1 and prepares the pinned package before tooling tests or
+addon packaging; the publisher job neither downloads nor executes the minifier.
+For local preview, install Lua 5.1 and run the setup command above. Windows may use
+the existing Lupa 2.8 Lua 5.1 test runtime instead. There is no unchecked fallback.
+
+Source-token and Lua 5.1 binary equivalence checks must both pass before accepting
+the result. The selected options preserve names, operators, string bytes, localization and manifest
+load order; it does not rename globals/locals, obfuscate code or emit bytecode.
+Repository sources stay readable. Packaged traceback line numbers can differ
+from repository sources because removed comments/whitespace change line counts.
+
+Both PR CI and the release build inspect the actual ZIP before executing packaged
+code. Unexpected, missing or duplicate paths, altered contents and hash mismatches
+fail the check. The test command runs from the source checkout with
+`ADDON_RUNTIME_PATH` pointing to the extracted addon. Release-enabled addon test
+harnesses must honor this variable when loading runtime files; test code and
+fixtures remain in the checkout. CompactAddonButtons runs all 16 Lua 5.1 scenarios
+against the extracted minified runtime as well as the regular source tests.
+
+Install the attached `AddonName-version.zip` or use the CurseForge file. GitHub's
+automatic **Source code** ZIP/tar archives contain the repository, including tests
+and documentation; they are not the installable package and are never uploaded
+to CurseForge.
 
 ## Failures and moderation
 

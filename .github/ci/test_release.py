@@ -22,7 +22,7 @@ class ReleaseTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.output = self.root / "dist"
         self.addon = {"name": "Example", "path": "Example", "manifest": "Example.toc", "status": "release",
-                      "release": {"files": ["*.toc", "*.lua", "Media/*"], "curseforge": {
+                      "release": {"files": ["*.toc", "*.lua", "Media/Icon.tga"], "curseforge": {
                           "project_id": 123, "game_version_type_id": 88568, "game_versions": ["1.60.1"]}}}
         (self.root / "Example/Media").mkdir(parents=True)
         (self.root / "Example/tests").mkdir()
@@ -56,9 +56,67 @@ class ReleaseTests(unittest.TestCase):
         self.addon["release"]["files"] = ["*.toc"]
         with self.assertRaisesRegex(ValueError, "Manifest dependency"):
             release.package(self.addon, "1.2.3", self.output)
-        self.addon["release"]["files"] = ["**/*"]
+        self.addon["release"]["files"] = ["*.toc", "*.lua", "tests/*.py"]
         with self.assertRaisesRegex(ValueError, "Development files"):
             release.package(self.addon, "1.2.3", self.output)
+
+    def test_unreferenced_source_and_extra_manifests_are_rejected(self):
+        (self.root / "Example/Debug.lua").write_text("print('debug')", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "not referenced"):
+            release.package(self.addon, "1.2.3", self.output)
+        (self.root / "Example/Debug.lua").unlink()
+        (self.root / "Example/Other.toc").write_text("## Version: 1.2.3", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Unexpected manifest"):
+            release.package(self.addon, "1.2.3", self.output)
+
+    def test_media_globs_and_development_file_types_are_rejected(self):
+        self.addon["release"]["files"][-1] = "Media/*"
+        with self.assertRaisesRegex(ValueError, "explicit paths"):
+            release.package(self.addon, "1.2.3", self.output)
+        self.addon["release"]["files"][-1] = "README.md"
+        (self.root / "Example/README.md").write_text("development docs", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Non-runtime"):
+            release.package(self.addon, "1.2.3", self.output)
+
+    def test_verification_tests_extracted_minified_runtime(self):
+        source = "-- internal comment\n  local name = ...\n  return name\n"
+        (self.root / "Example/Main.lua").write_text(source, encoding="utf-8")
+        release.prepare("Example/v1.2.3", self.output, check_git=False)
+        def check(addon, runtime_path):
+            packaged = (runtime_path / "Main.lua").read_text(encoding="utf-8")
+            self.assertNotIn("internal comment", packaged)
+            self.assertIn("local name=...", packaged)
+            self.assertIn("return name", packaged)
+            self.assertFalse((runtime_path / "tests").exists())
+            self.assertFalse((runtime_path / "README.md").exists())
+            self.assertEqual((self.root / "Example/Main.lua").read_text(encoding="utf-8"), source)
+        with patch.object(release, "run_tests", side_effect=check) as tests:
+            release.verify(self.output)
+            tests.assert_called_once()
+
+    def test_zip_inventory_and_contents_are_validated_before_execution(self):
+        for damage in ("extra", "missing", "duplicate", "content"):
+            with self.subTest(damage=damage):
+                info = release.prepare("Example/v1.2.3", self.output, check_git=False)
+                archive = self.output / info["archive"]
+                with zipfile.ZipFile(archive) as bundle:
+                    entries = [(name, bundle.read(name)) for name in bundle.namelist()]
+                if damage == "extra":
+                    entries.append(("../private.txt", b"not runtime"))
+                elif damage == "missing":
+                    entries.pop()
+                elif damage == "duplicate":
+                    entries.append(entries[0])
+                else:
+                    entries[0] = (entries[0][0], b"altered")
+                with zipfile.ZipFile(archive, "w") as bundle:
+                    for name, content in entries:
+                        bundle.writestr(name, content)
+                info["sha256"] = hashlib.sha256(archive.read_bytes()).hexdigest()
+                (self.output / "release.json").write_text(json.dumps(info), encoding="utf-8")
+                with patch.object(release, "run_tests") as tests, self.assertRaisesRegex(ValueError, "mismatch"):
+                    release.verify(self.output)
+                tests.assert_not_called()
 
     def test_exact_forever_flavor_resolution(self):
         rows = [{"name": "1.60.1", "gameVersionTypeID": 517, "id": 1},

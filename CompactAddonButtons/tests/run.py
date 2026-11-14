@@ -1,5 +1,6 @@
 """Exercise the addon in Lua 5.1 with a stateful WoW UI double."""
 from pathlib import Path
+import os
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,7 +16,7 @@ LOCALES = ("enUS", "ruRU", "esES", "esMX", "deDE", "frFR", "enGB", "koKR")
 for locale, legacy in ((locale, legacy) for locale in LOCALES for legacy in (False, True)):
     lua = LuaRuntime(unpack_returned_tuples=True, register_eval=False, register_builtins=False)
     lua.execute("assert(python.eval == nil and python.builtins == nil)")
-    lua.globals().ADDON_PATH = ROOT.joinpath("CompactAddonButtons").as_posix()
+    lua.globals().ADDON_PATH = Path(os.environ.get("ADDON_RUNTIME_PATH", ROOT / "CompactAddonButtons")).resolve().as_posix()
     lua.globals().TEST_LOCALE = locale
     lua.globals().TEST_LEGACY = legacy
     lua.execute(Path(__file__).with_name("wow_mock.lua").read_text(encoding="utf-8"))

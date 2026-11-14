@@ -6,13 +6,15 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
 import zipfile
 
-from addons import ROOT, git, inside, registry
+from addons import ROOT, git, inside, registry, run_tests
+from lua_minify import minify
 
 CURSEFORGE = "https://wow.curseforge.com"
 TAG = re.compile(r"([A-Za-z][A-Za-z0-9_-]*)/v([0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|beta|rc)\.[0-9]+)?)")
@@ -44,7 +46,7 @@ def toc_version(addon):
     return matches[0]
 
 
-def package(addon, version, output):
+def release_files(addon, version):
     if toc_version(addon) != version:
         raise ValueError("Tag version does not match ## Version in the addon's .toc")
     root = inside(ROOT, addon["path"])
@@ -58,16 +60,38 @@ def package(addon, version, output):
             if path.is_symlink() or any(part.startswith(".") or part in {"tests", "node_modules", "__pycache__"} for part in relative.parts):
                 raise ValueError(f"Development files/symlinks cannot be packaged: {relative}")
             safe = inside(root, relative.as_posix())
+            if safe.suffix.lower() not in {".toc", ".lua", ".xml", ".tga", ".blp", ".png", ".jpg", ".jpeg", ".ogg", ".mp3", ".wav", ".ttf", ".otf"}:
+                raise ValueError(f"Non-runtime file cannot be packaged: {relative}")
+            if safe.suffix.lower() not in {".toc", ".lua", ".xml"} and pattern != relative.as_posix():
+                raise ValueError(f"Runtime assets must use explicit paths, not globs: {relative}")
             files[relative.as_posix()] = safe.read_bytes()
     if addon["manifest"] not in files:
         raise ValueError("The configured manifest is missing from the ZIP")
+    dependencies = set()
     for entry in files[addon["manifest"]].decode("utf-8-sig").splitlines():
         entry = entry.strip()
         if entry and not entry.startswith("#") and entry not in files:
             raise ValueError(f"Manifest dependency is missing from the ZIP: {entry}")
+        if entry and not entry.startswith("#"):
+            dependencies.add(entry)
+    for relative in files:
+        suffix = Path(relative).suffix.lower()
+        if suffix in {".lua", ".xml"} and relative not in dependencies:
+            raise ValueError(f"Source is not referenced by the manifest: {relative}")
+        if suffix == ".toc" and relative != addon["manifest"]:
+            raise ValueError(f"Unexpected manifest in release: {relative}")
+    for relative, content in list(files.items()):
+        if Path(relative).suffix.lower() == ".lua":
+            files[relative] = minify(content.decode("utf-8-sig")).encode("utf-8")
     license_file = ROOT / "LICENSE"
     if license_file.is_file():
         files.setdefault("LICENSE", license_file.read_bytes())
+    return files
+
+
+def package(addon, version, output):
+    root = inside(ROOT, addon["path"])
+    files = release_files(addon, version)
     output.mkdir(parents=True, exist_ok=True)
     archive = output / f"{addon['name']}-{version}.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as bundle:
@@ -77,6 +101,29 @@ def package(addon, version, output):
             entry.external_attr = 0o100644 << 16
             bundle.writestr(entry, content, compresslevel=9)
     return archive
+
+
+def verify(output):
+    """Check the actual ZIP against this checkout, then test its extracted runtime."""
+    info = json.loads((output / "release.json").read_text(encoding="utf-8"))
+    addon, version = target(info["tag"])
+    archive = inside(output, info["archive"])
+    if hashlib.sha256(archive.read_bytes()).hexdigest() != info["sha256"]:
+        raise ValueError("Release ZIP hash mismatch")
+    root_name = inside(ROOT, addon["path"]).name
+    expected = {f"{root_name}/{path}": content for path, content in release_files(addon, version).items()}
+    with zipfile.ZipFile(archive) as bundle, tempfile.TemporaryDirectory() as directory:
+        names = bundle.namelist()
+        if len(names) != len(set(names)) or set(names) != set(expected):
+            raise ValueError("Release ZIP inventory mismatch: unexpected, duplicate, or missing files")
+        for name, content in expected.items():
+            if bundle.read(name) != content:
+                raise ValueError(f"Release ZIP content mismatch: {name}")
+            destination = inside(Path(directory), name)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+        print(f"Verified {len(names)} release files: " + ", ".join(sorted(names)))
+        run_tests(addon, runtime_path=Path(directory) / root_name)
 
 
 def prepare(tag, output, check_git=True):
@@ -251,7 +298,8 @@ def publish(output, expected_tag=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["target", "prepare", "publish", "preview"])
+    parser.add_argument("action", choices=["target", "prepare", "publish", "preview", "verify", "check"])
+    parser.add_argument("--addon", help="Registered addon to package-check in PR CI")
     parser.add_argument("--tag", default=os.environ.get("RELEASE_TAG"))
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
     args = parser.parse_args()
@@ -263,6 +311,19 @@ def main():
             output.write(f"addon={addon['name']}\n")
     elif args.action in {"prepare", "preview"}:
         prepare(args.tag, args.output, check_git=args.action != "preview")
+    elif args.action == "verify":
+        verify(args.output)
+    elif args.action == "check":
+        addon = next((item for item in registry() if item["name"] == args.addon), None)
+        if addon is None:
+            raise ValueError("Unknown addon identifier")
+        if not addon.get("release"):
+            print(f"{addon['name']}: release packaging not configured")
+            return
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            prepare(f"{addon['name']}/v{toc_version(addon)}", output, check_git=False)
+            verify(output)
     else:
         try:
             publish(args.output, args.tag)
