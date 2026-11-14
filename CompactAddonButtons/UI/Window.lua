@@ -5,13 +5,13 @@ local T = ns.Localization.Text
 local text, skin, smallButton = ns.Widgets.Text, ns.Widgets.Skin, ns.Widgets.Button
 local floor, max = math.floor, math.max
 local rows, slots = {}, {}
-local panel, content, scroll, empty, footer, search, modeButton
+local panel, content, gridContent, scroll, empty, footer, search, modeButton
 local header, close, scan, title, languageLabel, languageDropdown
 local columnsLabel, columnsDropdown
 local settingsMode = false
 local query = ""
 local WIDTH, HEIGHT, CELL = 384, 432, 32
-local PADDING, MAX_ROWS = 3, 6
+local PADDING = 3
 
 local function savePosition()
     local point, _, relativePoint, x, y = panel:GetPoint()
@@ -42,7 +42,7 @@ local function rowAt(index)
 end
 
 function Window.CreateSlot()
-    local slot = CreateFrame("Frame", nil, content)
+    local slot = CreateFrame("Frame", nil, gridContent)
     slot:SetSize(CELL, CELL)
     slots[#slots + 1] = slot
     return slot
@@ -74,6 +74,8 @@ local function layout(count)
     languageDropdown:SetShown(settingsMode)
     columnsLabel:SetShown(settingsMode)
     columnsDropdown:SetShown(settingsMode)
+    scroll:SetShown(settingsMode)
+    gridContent:SetShown(not settingsMode)
     scroll:ClearAllPoints()
     empty:ClearAllPoints()
     if settingsMode then
@@ -86,18 +88,15 @@ local function layout(count)
     else
         local columns = math.min(ns.Settings.GetColumns(), max(1, count))
         local rowsNeeded = max(1, math.ceil(count / columns))
-        local overflow = rowsNeeded > MAX_ROWS
         local width = count == 0 and 210 or columns * CELL + PADDING * 2
-        panel:SetSize(width + (overflow and 20 or 0), math.min(MAX_ROWS, rowsNeeded) * CELL + PADDING * 2)
-        scroll:SetPoint("TOPLEFT", PADDING, -PADDING)
-        scroll:SetPoint("BOTTOMRIGHT", -(PADDING + (overflow and 20 or 0)), PADDING)
-        content:SetWidth(columns * CELL)
+        panel:SetSize(width, rowsNeeded * CELL + PADDING * 2)
+        gridContent:SetSize(columns * CELL, rowsNeeded * CELL)
         empty:SetPoint("CENTER", panel, "CENTER", 0, 0)
         empty:SetWidth(width - PADDING * 2)
         Window.PositionPopup()
     end
     local bar = scroll.ScrollBar or _G["CompactAddonButtonsScrollScrollBar"]
-    if bar then bar:SetShown(settingsMode or count > ns.Settings.GetColumns() * MAX_ROWS) end
+    if bar then bar:SetShown(settingsMode) end
 end
 
 function Window.Refresh()
@@ -137,11 +136,11 @@ function Window.Refresh()
     -- may have side effects, even though the visible layout has not changed.
     for _, slot in ipairs(slots) do slot:SetShown(activeSlots[slot] == true) end
     for i, row in ipairs(rows) do row:SetShown(settingsMode and i <= count) end
-    content:SetHeight(max(1, settingsMode and count * 30 or math.ceil(count / columns) * CELL))
+    if settingsMode then content:SetHeight(max(1, count * 30)) end
     empty:SetShown(count == 0)
     modeButton:SetText(settingsMode and T("BACK") or T("SETTINGS"))
     footer:SetText(ns.App.IsPending() and T("COMBAT") or (settingsMode and T("EXCEPTIONS") or T("HINT")))
-    local range = max(0, content:GetHeight() - scroll:GetHeight())
+    local range = settingsMode and max(0, content:GetHeight() - scroll:GetHeight()) or 0
     scroll:SetVerticalScroll(math.min(scroll:GetVerticalScroll(), range))
 end
 
@@ -247,6 +246,10 @@ function Window.Create()
     search.hint = text(search, "GameFontDisableSmall", T("SEARCH"), 0, -5)
     panel:SetScript("OnHide", function() search:ClearFocus(); GameTooltip:Hide() end)
 
+    -- Keep the icon grid outside the settings scroll frame so it cannot scroll or clip.
+    gridContent = CreateFrame("Frame", nil, panel)
+    gridContent:SetPoint("TOPLEFT", PADDING, -PADDING)
+    gridContent:Hide()
     scroll = CreateFrame("ScrollFrame", "CompactAddonButtonsScroll", panel, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 16, -158)
     scroll:SetPoint("BOTTOMRIGHT", -30, 52)

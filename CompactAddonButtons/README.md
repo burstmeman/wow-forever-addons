@@ -4,7 +4,7 @@
 
 A standalone minimap button drawer for **World of Warcraft: Forever**, Interface **16001**. No required libraries or other addons.
 
-Version **1.2.5**.
+Version **1.2.6**.
 
 ## Installation
 
@@ -30,7 +30,7 @@ The `tests` directory and this README are development files and may be omitted w
 | `/cab settings` | Toggle the exceptions list |
 | `/cab refresh` | Rescan buttons |
 
-The popup contains only addon icons in a tight grid with a lightly translucent background and fits its size to the number of visible buttons: a configurable 1–12 columns (six by default) and up to six rows, with scrolling for larger collections. Right-click the launcher and choose **Buttons per row** to change the grid without reloading. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently.
+The popup contains only addon icons in a tight grid with a lightly translucent background and fits its size to the number of visible buttons: a configurable 1–12 columns (six by default) and as many rows as needed. The icon grid has no scrolling or scrollbar. Right-click the launcher and choose **Buttons per row** to change the grid without reloading. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently. Only the settings list scrolls.
 
 Settings, language preference, exceptions, and settings-window/minimap positions are saved per account. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
 
@@ -126,5 +126,5 @@ These tests do not replace a live Forever client check. Visual layout, real thir
 4. Toggle exceptions, move the settings window/launcher, reload, and check persistence. Check that the icon popup still opens beside the launcher rather than at the saved settings position.
 5. Test a source addon's own show/hide setting and a load-on-demand button.
 6. Enter and leave combat with the drawer open; check for Lua errors, blocked actions, and taint.
-7. Check scrolling with more than 30 buttons, an empty popup, Russian text, custom minimap shapes, launchers near each screen edge, and the client's UI scale.
+7. Check that the icon grid expands without scrolling with more than 36 buttons and different column counts. Check settings-list scrolling, an empty popup, Russian text, custom minimap shapes, launchers near each screen edge, and the client's UI scale.
 8. Select each language in the native dropdown, check translated labels/tooltips for clipping, reload, and verify that the choice persists. Switch back to automatic detection.

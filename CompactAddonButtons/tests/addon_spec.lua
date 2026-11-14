@@ -226,15 +226,17 @@ ns.MinimapButton.Position()
 local _, _, _, launcherX, launcherY = ns.MinimapButton.GetFrame():GetPoint()
 assert(math.abs(launcherX - 57) < 0.01 and math.abs(launcherY - 57) < 0.01)
 
--- A large addon collection scrolls instead of creating a screen-sized popup.
+-- A large addon collection expands into full rows without a scroll frame.
 for i = 1, 35 do button("Extra" .. i .. "MinimapButton") end
 ns.App.Scan()
 ns.App.Toggle(false)
-assert(ns.Window.GetFrame():GetWidth() == 218 and ns.Window.GetFrame():GetHeight() == 198)
 local popupScroll = CompactAddonButtonsScroll
-assert(popupScroll.child:GetWidth() == 192 and popupScroll.child:GetHeight() > 192)
+local grid = ns.Buttons.Find(beta).slot:GetParent()
+assert(grid:GetParent() == ns.Window.GetFrame() and grid:IsShown() and not popupScroll:IsShown())
+assert(grid:GetWidth() == 192 and grid:GetHeight() > 192)
+assert(ns.Window.GetFrame():GetWidth() == 198 and ns.Window.GetFrame():GetHeight() == grid:GetHeight() + 6)
 
--- The actual settings menu controls saved columns, wrapping, and overflow.
+-- The actual settings menu controls saved columns and wrapping without scrolling.
 local visible = {}
 for _, entry in ipairs(ns.Buttons.All()) do
     if entry.collected and entry.button:IsShown() then visible[#visible + 1] = entry end
@@ -242,6 +244,8 @@ end
 ns.App.Toggle(true)
 local columnsDropdown = CompactAddonButtonsColumns
 assert(columnsDropdown:IsShown() and #columnsDropdown.choices == 12 and columnsDropdown.selectedText == "6")
+assert(popupScroll:IsShown() and not grid:IsShown(), "only settings use the scroll frame")
+popupScroll:SetVerticalScroll(75)
 for value = 1, 12 do
     local choice = columnsDropdown.choices[value]
     assert(choice.value == value)
@@ -251,9 +255,10 @@ for value = 1, 12 do
     ns.App.Toggle(false)
     assert(not columnsDropdown:IsShown(), "grid controls belong only in settings")
     local rowCount = math.ceil(#visible / value)
-    local overflow = rowCount > 6
-    assert(ns.Window.GetFrame():GetWidth() == value * 32 + 6 + (overflow and 20 or 0))
-    assert(ns.Window.GetFrame():GetHeight() == math.min(6, rowCount) * 32 + 6)
+    assert(ns.Window.GetFrame():GetWidth() == value * 32 + 6)
+    assert(ns.Window.GetFrame():GetHeight() == rowCount * 32 + 6)
+    assert(grid:IsShown() and not popupScroll:IsShown() and popupScroll:GetVerticalScroll() == 0)
+    assert(grid:GetHeight() == rowCount * 32, "all rows must fit without clipping")
     for i, entry in ipairs(visible) do
         local _, x, y = entry.slot:GetPoint()
         assert(x == ((i - 1) % value) * 32 and y == -math.floor((i - 1) / value) * 32,
@@ -276,7 +281,7 @@ TestUI.SetCombat(false)
 fire("PLAYER_REGEN_ENABLED")
 assert(not ns.App.IsPending() and columnsDropdown.selectedText == "2")
 ns.App.Toggle(false)
-assert(ns.Window.GetFrame():GetWidth() == 90, "combat-deferred columns apply after combat")
+assert(ns.Window.GetFrame():GetWidth() == 70, "combat-deferred columns apply after combat")
 assert(ns.App.SetColumns(6))
 
 -- An empty popup remains small and contains a useful empty-state message.
