@@ -23,3 +23,6 @@ for locale, legacy in ((locale, legacy) for locale in LOCALES for legacy in (Fal
     lua.execute(Path(__file__).with_name("addon_spec.lua").read_text(encoding="utf-8"))
     lua.execute(Path(__file__).with_name("localization_spec.lua").read_text(encoding="utf-8"))
     print(f"PASS: {locale}, legacy={legacy}: lifecycle, popup, restoration, combat, localization")
+
+lua.execute(Path(__file__).with_name("performance_spec.lua").read_text(encoding="utf-8"))
+print("PASS: performance: bounded memory/frame/hook use, idle work, menu invalidation, late discovery")
