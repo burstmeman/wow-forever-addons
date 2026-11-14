@@ -24,7 +24,7 @@ Open **Actions → Next addon version → Run workflow** on `main`:
    under `release-requests/`. It does not publish or change the game installation.
 4. Review and merge that PR after CI passes. A second job checks that the bot PR
    contains exactly the generated files, creates the addon tag at its merge commit,
-   creates a GitHub Release, and explicitly dispatches **Release addon** to publish.
+   creates a draft GitHub Release, and explicitly dispatches **Release addon** to publish.
 
 If GitHub asks to **Approve workflows to run** on the generated PR, approve that
 CI run before merging. Repository settings must permit Actions to create PRs:
@@ -93,7 +93,8 @@ already exist on CurseForge and the token owner must have access to it.
 ## Publish
 
 1. Update the selected addon's `.toc` version and merge the change into `main`.
-2. Either publish a GitHub Release using a matching addon tag, or push that tag:
+2. Push the matching addon tag (or create a draft GitHub Release with notes, then
+   run **Release addon** manually with that tag and **publish checked**):
 
    ```sh
    git tag CompactAddonButtons/v1.2.8
@@ -104,16 +105,23 @@ already exist on CurseForge and the token owner must have access to it.
    and security-checks only that addon, and builds a deterministic ZIP. A separate
    publishing job downloads that run's immutable artifact by ID, verifies its
    hash/tag/commit, and uses deployment code/configuration checked out from `main`.
-4. The job attaches the ZIP to the GitHub Release (creating the Release if the tag
+4. The job attaches the ZIP to the draft GitHub Release (creating a draft if the tag
    was pushed directly) and uploads the same ZIP to the configured CurseForge project.
    GitHub Release notes become the CurseForge changelog. Direct tag publication
-   creates a short default changelog; publish a GitHub Release with notes when you
+   creates a short default changelog; create a draft GitHub Release with notes when you
    want a detailed changelog from the start.
+5. After recording the CurseForge file ID and removing the pending marker, the job
+   publishes the GitHub Release. All assets are attached before publication, so
+   repositories with GitHub immutable releases enabled are supported.
 
 Both tag and Release events are supported. Runs for the same tag are serialized,
 and successful uploads record a JSON receipt with the CurseForge file ID and ZIP
 SHA-256 in the GitHub Release. Subsequent events or reruns skip that exact upload.
 An automatically created Release does not need to trigger another workflow.
+An already published immutable Release without a success receipt cannot accept
+assets and is rejected before any CurseForge upload. Do not publish the draft
+manually while deployment is running. Use a new addon version if a previous
+immutable Release was published before its ZIP and receipt were attached.
 
 The registry status maps to `release`, `beta`, or `alpha` (`development` and
 `experiment` map to `alpha`). Tag suffixes `-alpha.1`, `-beta.1`, and `-rc.1` select
@@ -149,6 +157,10 @@ the CurseForge project first: if the file was accepted, retain its ID and reconc
 the receipt; only remove the pending marker after confirming no file was created.
 This deliberately trades automatic retry for avoiding duplicate public uploads.
 Do not delete success receipts to force a release; publish a new version instead.
+If only the final GitHub publication failed, rerun the workflow: the existing
+success receipt prevents a second CurseForge upload and the draft is published.
+HTTP failures identify the API host/path and include JSON error details with
+deployment credentials redacted.
 
 Existing GitHub ZIP assets must have the same SHA-256 digest; they are never silently
 overwritten. A moved tag, altered artifact, version mismatch, missing token,

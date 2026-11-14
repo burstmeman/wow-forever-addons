@@ -132,6 +132,39 @@ def multipart(metadata, archive):
     return prefix.encode() + json.dumps(metadata).encode() + file_header.encode() + archive.read_bytes() + f"\r\n--{boundary}--\r\n".encode(), f"multipart/form-data; boundary={boundary}"
 
 
+def find_release(github, tag):
+    try:
+        return github("/releases/tags/" + urllib.parse.quote(tag, safe=""))
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+    # The tag endpoint may omit drafts. Authenticated listing includes them.
+    page = 1
+    while True:
+        batch = github(f"/releases?per_page=100&page={page}")
+        match = next((item for item in batch if item["tag_name"] == tag), None)
+        if match or len(batch) < 100:
+            return match
+        page += 1
+
+
+def api_error_message(error):
+    endpoint = urllib.parse.urlsplit(error.url)
+    message = f"Release API request failed: {endpoint.netloc}{endpoint.path} returned HTTP {error.code}"
+    try:
+        body = json.loads(error.read(8192))
+        details = {key: body[key] for key in ("message", "error", "errors") if key in body} if isinstance(body, dict) else {}
+        if details:
+            message += ": " + json.dumps(details, ensure_ascii=True)
+    except (ValueError, TypeError, OSError):
+        pass
+    for name in ("GITHUB_TOKEN", "CURSE_FORGE_DEPLOYMENT_TOKEN"):
+        secret = os.environ.get(name)
+        if secret:
+            message = message.replace(secret, "[redacted]")
+    return message[:2000] + "; inspect release assets before retrying an upload"
+
+
 def publish(output):
     info = json.loads((output / "release.json").read_text(encoding="utf-8"))
     addon, version = target(info["tag"])
@@ -156,15 +189,11 @@ def publish(output):
     def github(path, method="GET", payload=None):
         return request_json(api + path, github_token, "Authorization", method, payload)
 
-    try:
-        release = github("/releases/tags/" + urllib.parse.quote(info["tag"], safe=""))
-    except urllib.error.HTTPError as error:
-        if error.code != 404:
-            raise
+    release = find_release(github, info["tag"])
+    if release is None:
         release = github("/releases", "POST", {"tag_name": info["tag"], "name": f"{addon['name']} {version}",
-            "body": f"Release of {addon['name']} {version}.", "prerelease": channel(addon, version) != "release"})
-    if release.get("draft"):
-        raise ValueError("Publish the GitHub Release before deploying it")
+            "body": f"Release of {addon['name']} {version}.", "draft": True,
+            "prerelease": channel(addon, version) != "release"})
     assets = []
     page = 1
     while True:
@@ -177,10 +206,17 @@ def publish(output):
     receipt_name = f"curseforge-{cf['project_id']}-{info['sha256']}.json"
     pending_name = f"curseforge-pending-{cf['project_id']}.json"
     if any(a["name"] == receipt_name for a in assets):
+        pending = next((a for a in assets if a["name"] == pending_name), None)
+        if pending and not release.get("immutable"):
+            github(f"/releases/assets/{pending['id']}", "DELETE")
+        if release.get("draft"):
+            github(f"/releases/{release['id']}", "PATCH", {"draft": False})
         print("This exact archive already has a CurseForge upload receipt; skipping")
         return
     if any(a["name"] == pending_name for a in assets):
         raise ValueError("A previous upload has an uncertain outcome. Inspect CurseForge and the pending receipt before retrying; no duplicate POST will be sent")
+    if release.get("immutable"):
+        raise ValueError("GitHub Release is already immutable and has no CurseForge receipt. Assets cannot be added; use a new addon version and keep its release as a draft until deployment finishes. No CurseForge upload was sent")
 
     def asset(name, content, content_type):
         return request_json(f"https://uploads.github.com/repos/{repo}/releases/{release['id']}/assets?name=" + urllib.parse.quote(name, safe=""),
@@ -205,6 +241,8 @@ def publish(output):
         raise ValueError("CurseForge did not return a file ID; keep the pending receipt and investigate")
     asset(receipt_name, json.dumps({**info, "project_id": cf["project_id"], "file_id": result["id"]}).encode(), "application/json")
     github(f"/releases/assets/{pending['id']}", "DELETE")
+    if release.get("draft"):
+        github(f"/releases/{release['id']}", "PATCH", {"draft": False})
     print(f"CurseForge accepted file {result['id']} for project {cf['project_id']}; approval may still be pending")
 
 
@@ -226,7 +264,7 @@ def main():
         try:
             publish(args.output)
         except urllib.error.HTTPError as error:
-            raise SystemExit(f"Release API request failed with HTTP {error.code}; check the pending receipt before retrying") from None
+            raise SystemExit(api_error_message(error)) from None
 
 
 if __name__ == "__main__":
