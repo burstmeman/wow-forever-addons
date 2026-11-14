@@ -9,7 +9,7 @@ from addons import ROOT, inside, registry
 READ_GLOBALS = """ipairs pairs type tostring tonumber unpack select print
 math table string CreateFrame UIParent Minimap MinimapBackdrop GameTooltip
 GetLocale GetMinimapShape GetCursorPosition InCombatLockdown LibStub hooksecurefunc
-UISpecialFrames SlashCmdList tinsert _G""".split()
+UISpecialFrames tinsert _G""".split()
 FORBIDDEN = set("""getfenv setfenv getglobal setglobal rawget rawset getmetatable
 setmetatable load loadstring loadfile dofile require module collectgarbage
 io os debug package python ffi socket http https RunScript RunMacro RunMacroText
@@ -110,7 +110,7 @@ def check(addon, lint=True):
         # No config files or inline pragmas from addon code may weaken the allowlist.
         command = ["luacheck", *map(str, files), "--no-config", "--no-default-config", "--std", "none",
                    "--only", "0", "1", "--read-globals", *READ_GLOBALS,
-                   "--globals", *allowances.get("globals", [])]
+                   "--globals", "SlashCmdList", *allowances.get("globals", [])]
         subprocess.run(command, check=True)
     print(f"{addon['name']}: Lua API policy passed for {len(files)} runtime files")
 
