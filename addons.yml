@@ -5,7 +5,7 @@ addons:
     manifest: CompactAddonButtons.toc
     status: release
     release:
-      files: ['*.toc', '*.lua', 'Locales/*.lua', 'UI/*.lua', 'Media/*']
+      files: ['CompactAddonButtons.toc', '*.lua', 'Locales/*.lua', 'UI/*.lua', 'Media/Icon.tga', 'Media/MinimapIcon.tga']
       curseforge:
         project_id: 1804859
         game_version_type_id: 88568

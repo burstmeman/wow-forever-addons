@@ -2,6 +2,7 @@
 import copy
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import addons
@@ -9,6 +10,14 @@ import security
 
 
 class RoutingTests(unittest.TestCase):
+    def test_packaged_tests_receive_extracted_runtime_without_reinstalling_dependencies(self):
+        addon = {"path": "Example", "tests": {"command": ["python", "tests/run.py"], "requirements": "tests/requirements.txt"}}
+        with tempfile.TemporaryDirectory() as directory, patch.object(addons.subprocess, "run") as run:
+            addons.run_tests(addon, runtime_path=Path(directory))
+            run.assert_called_once()
+            self.assertEqual(run.call_args.kwargs["env"]["ADDON_RUNTIME_PATH"], str(Path(directory).resolve()))
+            self.assertEqual(run.call_args.args[0][1:], ["tests/run.py"])
+
     def setUp(self):
         self.addons = [
             {"name": "One", "path": "One", "manifest": "One.toc", "status": "development"},

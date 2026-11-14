@@ -66,6 +66,8 @@ jobs:
         run: python .github/ci/addons.py audit "$ADDON"
       - name: Run addon tests
         run: python .github/ci/addons.py test "$ADDON"
+      - name: Verify release inventory and test packaged runtime
+        run: python .github/ci/release.py check --addon "$ADDON"
 
   dependencies:
     name: CI dependency audit

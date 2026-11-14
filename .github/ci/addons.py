@@ -196,18 +196,21 @@ def register(path, status):
     print(f"Registered {entry['name']}; review addons.yml before committing")
 
 
-def run_tests(addon):
+def run_tests(addon, runtime_path=None):
     tests = addon.get("tests")
     if not tests:
         print(f"{addon['name']}: no tests declared ({addon['status']}); security checks still run")
         return
     root = inside(ROOT, addon["path"])
-    if tests.get("requirements"):
+    if tests.get("requirements") and runtime_path is None:
         subprocess.run([sys.executable, "-m", "pip", "install", "--only-binary=:all:", "-r", str(inside(root, tests["requirements"]))], check=True)
     command = list(tests["command"])
     if command[0] == "python":
         command[0] = sys.executable
-    subprocess.run(command, cwd=root, check=True)
+    environment = os.environ.copy()
+    if runtime_path is not None:
+        environment["ADDON_RUNTIME_PATH"] = str(runtime_path.resolve())
+    subprocess.run(command, cwd=root, env=environment, check=True)
 
 
 def main():
