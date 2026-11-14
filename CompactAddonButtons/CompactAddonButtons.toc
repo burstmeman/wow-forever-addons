@@ -1,9 +1,10 @@
 ## Interface: 16001
 ## Title: Compact Addon Buttons
+## IconTexture: Interface\AddOns\CompactAddonButtons\Media\Icon
 ## Notes: A tidy home for addon minimap buttons, with per-button exceptions.
 ## Notes-ruRU: Собирает кнопки аддонов в одном окне с настраиваемыми исключениями.
-## Author: Ilya Rakavets
-## Version: 1.2.0
+## Author: burstmeman
+## Version: 1.2.1
 ## SavedVariables: CompactAddonButtonsDB, BetterAddonButtonsDB
 
 Settings.lua

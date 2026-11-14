@@ -1,8 +1,10 @@
 # Compact Addon Buttons
 
+![Compact Addon Buttons icon](icon.png)
+
 A standalone minimap button drawer for **World of Warcraft: Forever**, Interface **16001**. No required libraries or other addons.
 
-Version **1.2.0**.
+Version **1.2.1**.
 
 ## Installation
 
@@ -14,15 +16,15 @@ The `tests` directory and this README are development files and may be omitted w
 
 | Action | Result |
 | --- | --- |
-| Left-click the bag button on the minimap | Toggle a compact icon popup beside the button |
-| Right-click the bag button | Open the exceptions list |
-| Drag the bag button | Move it around the minimap edge |
+| Left-click the addon button on the minimap | Toggle a compact icon popup beside the button |
+| Right-click the addon button | Open the exceptions list |
+| Drag the addon button | Move it around the minimap edge |
 | Drag the settings header | Move the settings window |
 | Check a button in Exceptions | Keep that button on the minimap |
 | Language dropdown in settings | Choose automatic detection or a specific interface language |
 | Search in settings | Filter the exceptions list by button name |
 | Refresh in settings | Immediately discover newly created buttons |
-| Escape or left-click the bag button again | Close the popup |
+| Escape or left-click the addon button again | Close the popup |
 | `/cab` or `/compactaddonbuttons` | Toggle the drawer |
 | `/cab settings` | Toggle the exceptions list |
 | `/cab refresh` | Rescan buttons |
@@ -30,6 +32,8 @@ The `tests` directory and this README are development files and may be omitted w
 The popup contains only addon icons and fits its size to the number of visible buttons: up to five columns and six rows, with scrolling for larger collections. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently.
 
 Settings, language preference, exceptions, and settings-window/minimap positions are saved per account. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
+
+The minimap launcher and the in-game addon list share `Media/Icon.tga`: an uncompressed 64 x 64, 24-bit RGB texture (12,332 bytes). `icon.png` is a 128 x 128 preview for this page; the game does not load it. Both are resized from the supplied artwork without changing its composition.
 
 ## Languages
 
@@ -116,7 +120,7 @@ Coverage includes startup and invalid saved settings, LibDBIcon/custom discovery
 These tests do not replace a live Forever client check. Visual layout, real third-party callbacks, and client taint/protection behavior have not been verified in game for this addon. Before release:
 
 1. Confirm `/dump select(4, GetBuildInfo())` reports `16001`.
-2. Enable several installed addons with minimap buttons; verify only the bag button and chosen exceptions remain on the minimap.
+2. Enable several installed addons with minimap buttons; verify only the addon button and chosen exceptions remain on the minimap.
 3. Open the drawer and test each collected button's left/right clicks and tooltips.
 4. Toggle exceptions, move the settings window/launcher, reload, and check persistence. Check that the icon popup still opens beside the launcher rather than at the saved settings position.
 5. Test a source addon's own show/hide setting and a load-on-demand button.
