@@ -1,0 +1,19 @@
+local _, ns = ...
+ns.Localization.Register("frFR", "Français", {
+    TITLE = "Boutons des addons",
+    SETTINGS = "Exceptions",
+    BACK = "Retour",
+    EMPTY = "Aucun bouton d'addon trouvé pour le moment.",
+    HINT = "Les boutons conservent leurs clics et leurs infobulles.",
+    EXCEPTIONS = "Les boutons cochés restent sur la minicarte.",
+    COMBAT = "Les modifications seront appliquées après le combat.",
+    LEFT_CLICK = "Clic gauche pour afficher les boutons",
+    RIGHT_CLICK = "Clic droit pour configurer les exceptions",
+    DRAG = "Faites glisser le bouton autour de la minicarte",
+    HIDDEN = "masqué par son propre addon",
+    SEARCH = "Rechercher un bouton...",
+    SCAN = "Actualiser",
+    LOCKED = "Impossible d'ouvrir la fenêtre en combat.",
+    LANGUAGE = "Langue",
+    AUTO_LANGUAGE = "Automatique (langue du client)",
+})

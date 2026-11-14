@@ -2,15 +2,13 @@
 
 A standalone minimap button drawer for **World of Warcraft: Forever**, Interface **16001**. No required libraries or other addons.
 
-Version **1.1.0**, previously named **BetterAddonButtons**.
+Version **1.2.0**.
 
 ## Installation
 
 Copy the entire `CompactAddonButtons` directory into the Forever client's `Interface/AddOns/` directory. The manifest must be at `Interface/AddOns/CompactAddonButtons/CompactAddonButtons.toc`, without an additional nested directory. Restart the client or reload the UI and enable **Compact Addon Buttons** in the addon list.
 
 The `tests` directory and this README are development files and may be omitted when installing.
-
-When upgrading from BetterAddonButtons, remove or disable its old addon folder before enabling CompactAddonButtons. Keep its account-wide `WTF/Account/<account>/SavedVariables/BetterAddonButtons.lua` file for the first login: saved exceptions and positions are imported automatically. `/bab` and `/betteraddonbuttons` remain aliases, and the old optional registration API remains available.
 
 ## Controls
 
@@ -21,6 +19,7 @@ When upgrading from BetterAddonButtons, remove or disable its old addon folder b
 | Drag the bag button | Move it around the minimap edge |
 | Drag the settings header | Move the settings window |
 | Check a button in Exceptions | Keep that button on the minimap |
+| Language dropdown in settings | Choose automatic detection or a specific interface language |
 | Search in settings | Filter the exceptions list by button name |
 | Refresh in settings | Immediately discover newly created buttons |
 | Escape or left-click the bag button again | Close the popup |
@@ -30,7 +29,54 @@ When upgrading from BetterAddonButtons, remove or disable its old addon folder b
 
 The popup contains only addon icons and fits its size to the number of visible buttons: up to five columns and six rows, with scrolling for larger collections. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently.
 
-Settings, exceptions, and settings-window/minimap positions are saved per account. The interface automatically uses Russian on a `ruRU` client and English otherwise. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
+Settings, language preference, exceptions, and settings-window/minimap positions are saved per account. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
+
+## Languages
+
+English is the default and fallback language. On first use, the language preference is **Automatic (client language)**. The bundled translations are:
+
+| Language | Client locales |
+| --- | --- |
+| English | `enUS`, `enGB` |
+| Russian | `ruRU` |
+| Spanish | `esES`, `esMX` |
+| German | `deDE` |
+| French | `frFR` |
+
+Right-click the minimap button, then use **Language** to override automatic detection. A manual choice is saved per account and updates the existing interface without reloading. Unsupported client languages use English. Missing translation keys also fall back to English individually.
+
+Each language is a UTF-8 Lua file under `Locales/`. To bundle another language, register its strings in a new file and add that file to the manifest after `Locales/enUS.lua`. The rest of the addon requires no changes:
+
+```lua
+local _, ns = ...
+ns.Localization.Register("itIT", "Italiano", {
+    TITLE = "Pulsanti addon",
+    LANGUAGE = "Lingua",
+    AUTO_LANGUAGE = "Automatico (lingua del client)",
+    -- Omitted keys use English. See Locales/enUS.lua for the full dictionary.
+})
+```
+
+External translation addons can use `CompactAddonButtons.RegisterLocale(locale, displayName, strings, aliases)` after this addon loads. Registering more strings for an existing locale merges them without duplicating the language menu entry. An optional aliases array maps additional client locales to the translation. Strings and language metadata are copied on registration. Translations must be strings; invalid registrations return `false` without changing the registry. Registration also refreshes the current interface, so late-loaded translations work.
+
+`CompactAddonButtons.SetLanguage("frFR")` selects a registered language; `SetLanguage("auto")` restores client detection. `GetLanguage()` returns the effective canonical locale. Unsupported manual selections return `false` without changing the saved preference.
+
+## Code organization
+
+Modules are plain Lua tables with explicit responsibilities; there is no framework or class hierarchy.
+
+| Module | Responsibility |
+| --- | --- |
+| `Buttons.lua` | Button identities, duplicate prevention, ordering, and matching; no frame operations |
+| `Collection.lua` | Capture/restore button state and maintain collected anchors |
+| `Discovery.lua` | Discover LibDBIcon/custom buttons and exclude native/protected controls |
+| `Settings.lua` | Saved variables, validation, persistence, and migration |
+| `Localization.lua`, `Locales/` | Translation registry, locale resolution, English fallback, dictionaries |
+| `UI/Window.lua` | Render the compact popup and settings; dispatch user actions |
+| `UI/MinimapButton.lua` | Launcher appearance, minimap geometry, dragging, and tooltips |
+| `UI/Widgets.lua` | Shared frame styling and small widget factories |
+| `Application.lua` | Coordinate discovery, collection, preferences, and combat restrictions |
+| `Bootstrap.lua`, `API.lua` | WoW events, slash commands, and the public extension API |
 
 ## How collection works
 
@@ -63,7 +109,9 @@ python -m pip install -r CompactAddonButtons/tests/requirements.txt
 python CompactAddonButtons/tests/run.py
 ```
 
-The runner also supports the existing repository-local `.tools/lua-test-runtime` installation. It executes the actual manifest in Lua 5.1 for English and Russian with a stateful UI double. Coverage includes startup and invalid saved settings, LibDBIcon and custom discovery, exclusion of native/protected controls, hidden buttons, original click/hover behavior, external repositioning, exception restoration with multiple anchors and drag scripts, late library identity migration, periodic scans, search, slash commands, saved positions, square minimaps, and combat deferral.
+The runner also supports the existing repository-local `.tools/lua-test-runtime` installation. It executes the actual manifest in Lua 5.1 with a stateful UI double. Sixteen scenarios cover all five bundled languages, English/Spanish locale aliases, an unsupported client language, and fresh/migrated settings.
+
+Coverage includes startup and invalid saved settings, LibDBIcon/custom discovery, exclusion of native/protected controls, hidden buttons, original click/hover behavior, repositioning, exception restoration with multiple anchors and drag scripts, identity migration, periodic scans, search, slash commands, saved positions, square minimaps, popup bounds, and combat deferral. Localization checks cover actual dropdown callbacks, immediate text updates, per-key fallback, complete bundled dictionaries, manual choice persistence, invalid registrations, metadata isolation, late translation packs, and language changes during combat.
 
 These tests do not replace a live Forever client check. Visual layout, real third-party callbacks, and client taint/protection behavior have not been verified in game for this addon. Before release:
 
@@ -74,3 +122,4 @@ These tests do not replace a live Forever client check. Visual layout, real thir
 5. Test a source addon's own show/hide setting and a load-on-demand button.
 6. Enter and leave combat with the drawer open; check for Lua errors, blocked actions, and taint.
 7. Check scrolling with more than 30 buttons, an empty popup, Russian text, custom minimap shapes, launchers near each screen edge, and the client's UI scale.
+8. Select each language in the native dropdown, check translated labels/tooltips for clipping, reload, and verify that the choice persists. Switch back to automatic detection.

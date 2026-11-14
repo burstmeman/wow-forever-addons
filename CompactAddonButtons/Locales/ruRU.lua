@@ -1,10 +1,8 @@
 local _, ns = ...
-
-ns.L = GetLocale() == "ruRU" and {
+ns.Localization.Register("ruRU", "Русский", {
     TITLE = "Кнопки аддонов",
     SETTINGS = "Исключения",
     BACK = "Назад",
-    CLOSE = "Закрыть",
     EMPTY = "Кнопки аддонов пока не найдены.",
     HINT = "Обычные клики и подсказки кнопок сохранены.",
     EXCEPTIONS = "Отмеченные кнопки останутся на миникарте.",
@@ -13,23 +11,9 @@ ns.L = GetLocale() == "ruRU" and {
     RIGHT_CLICK = "ПКМ — настроить исключения",
     DRAG = "Перетаскивание — переместить по миникарте",
     HIDDEN = "скрыта самим аддоном",
-    SEARCH = "Поиск кнопки…",
+    SEARCH = "Поиск кнопки...",
     SCAN = "Обновить",
     LOCKED = "Окно нельзя открыть в бою.",
-} or {
-    TITLE = "Addon buttons",
-    SETTINGS = "Exceptions",
-    BACK = "Back",
-    CLOSE = "Close",
-    EMPTY = "No addon buttons found yet.",
-    HINT = "Buttons keep their normal clicks and tooltips.",
-    EXCEPTIONS = "Checked buttons stay on the minimap.",
-    COMBAT = "Changes will apply after combat.",
-    LEFT_CLICK = "Left-click to open buttons",
-    RIGHT_CLICK = "Right-click to manage exceptions",
-    DRAG = "Drag to move around the minimap",
-    HIDDEN = "hidden by its addon",
-    SEARCH = "Find a button…",
-    SCAN = "Refresh",
-    LOCKED = "The window cannot be opened in combat.",
-}
+    LANGUAGE = "Язык",
+    AUTO_LANGUAGE = "Автоматически (язык клиента)",
+})
