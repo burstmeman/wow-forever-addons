@@ -1,7 +1,15 @@
 local ns = TestUI.ns
 local L, Settings = ns.Localization, ns.Settings
-local expected = { enUS = "enUS", enGB = "enUS", ruRU = "ruRU", esES = "esES",
-    esMX = "esES", deDE = "deDE", frFR = "frFR", koKR = "enUS" }
+local expected = {
+    enUS = "enUS",
+    enGB = "enUS",
+    ruRU = "ruRU",
+    esES = "esES",
+    esMX = "esES",
+    deDE = "deDE",
+    frFR = "frFR",
+    koKR = "enUS",
+}
 assert(Settings.GetLanguage() == "auto")
 assert(CompactAddonButtons.GetLanguage() == expected[TEST_LOCALE])
 assert(#L.GetLanguages() == 5)
@@ -11,14 +19,18 @@ ns.App.Toggle(true)
 local dropdown = CompactAddonButtonsLanguage
 assert(dropdown:IsShown() and #dropdown.choices == 6)
 local german
-for _, choice in ipairs(dropdown.choices) do if choice.value == "deDE" then german = choice end end
+for _, choice in ipairs(dropdown.choices) do
+    if choice.value == "deDE" then german = choice end
+end
 assert(german)
 german.choose(german.value)
 assert(Settings.GetLanguage() == "deDE" and CompactAddonButtons.GetLanguage() == "deDE")
 assert(dropdown.selectedText == "Deutsch")
 
 local search
-for _, frame in ipairs(TestUI.frames) do if frame.kind == "EditBox" then search = frame end end
+for _, frame in ipairs(TestUI.frames) do
+    if frame.kind == "EditBox" then search = frame end
+end
 assert(search.hint:GetText() == "Schaltfläche suchen...")
 for _, language in ipairs(L.GetLanguages()) do
     assert(CompactAddonButtons.SetLanguage(language.locale))
@@ -39,9 +51,17 @@ assert(dropdown.selectedText == L.Text("AUTO_LANGUAGE"))
 -- passing this assertion through the runtime English fallback.
 for _, language in ipairs(L.GetLanguages()) do
     local english, translated
-    local sandbox = { Localization = { Register = function(locale, name, strings)
-        if locale == "enUS" then english = strings else translated = strings end
-    end } }
+    local sandbox = {
+        Localization = {
+            Register = function(locale, name, strings)
+                if locale == "enUS" then
+                    english = strings
+                else
+                    translated = strings
+                end
+            end,
+        },
+    }
     assert(loadfile(ADDON_PATH .. "/Locales/enUS.lua"))("CompactAddonButtons", sandbox)
     if language.locale ~= "enUS" then
         assert(loadfile(ADDON_PATH .. "/Locales/" .. language.locale .. ".lua"))("CompactAddonButtons", sandbox)

@@ -6,9 +6,7 @@ local active, preference, clientLocale = "enUS", "auto", "enUS"
 local onChanged
 local revision = 0
 
-function Localization.IsSupported(locale)
-    return packs[aliases[locale] or locale] ~= nil
-end
+function Localization.IsSupported(locale) return packs[aliases[locale] or locale] ~= nil end
 
 function Localization.Resolve(requested, client)
     local locale = requested == "auto" and client or requested
@@ -23,8 +21,16 @@ function Localization.Use(requested, client)
 end
 
 function Localization.Register(locale, name, translations, localeAliases)
-    if type(locale) ~= "string" or locale == "" or locale == "auto"
-        or type(name) ~= "string" or name == "" or type(translations) ~= "table" then return false end
+    if
+        type(locale) ~= "string"
+        or locale == ""
+        or locale == "auto"
+        or type(name) ~= "string"
+        or name == ""
+        or type(translations) ~= "table"
+    then
+        return false
+    end
     if localeAliases ~= nil and type(localeAliases) ~= "table" then return false end
     for key, value in pairs(translations) do
         if type(key) ~= "string" or type(value) ~= "string" then return false end
@@ -38,8 +44,12 @@ function Localization.Register(locale, name, translations, localeAliases)
     end
     local pack = packs[locale]
     pack.name = name
-    for key, value in pairs(translations) do pack.strings[key] = value end
-    for _, alias in ipairs(localeAliases or {}) do aliases[alias] = locale end
+    for key, value in pairs(translations) do
+        pack.strings[key] = value
+    end
+    for _, alias in ipairs(localeAliases or {}) do
+        aliases[alias] = locale
+    end
     revision = revision + 1
     active = Localization.Resolve(preference, clientLocale)
     if onChanged then onChanged() end

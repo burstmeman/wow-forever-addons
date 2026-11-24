@@ -135,6 +135,10 @@ you use the owning command.
 - Release packaging copies the allowlist in `addons.yml`, minifies Lua with
   the pinned LuaSrcDiet wrapper, and writes a deterministic ZIP. Repository
   sources stay readable. Do not commit minified output or `.tools/`.
+- Lua style is StyLua 2.6.0 with the root `stylua.toml` (Lua 5.1, four spaces,
+  LF). `python .github/ci/lua_format.py fix <AddonName>` rewrites the addon.
+  `check` is what CI runs. Do not add a second formatter config or an inline
+  `stylua:` directive.
 - Publication, CurseForge tokens, and GitHub release receipts belong to
   `.github/ci/release.py`. Do not upload a package by hand while that workflow
   is running.
@@ -186,7 +190,9 @@ For every change:
    package. Parse changed Lua with `luac -p` only when the compiler is Lua 5.1.
    A newer local `luac` is not authority for compatibility.
 4. Run `python .github/ci/security.py <AddonName>` when Luacheck is available.
-   This matches the addon CI job.
+   This matches the addon CI job. Run `python .github/ci/lua_format.py check <AddonName>`
+   after `python .github/ci/lua_format.py setup`. Use `fix` to rewrite Lua that
+   the check rejects.
 5. Review the final diff against the source-based explanation. Report the
    relevant evidence, checks actually run, and remaining uncertainty. Scale
    this explanation to the change; test counts alone are not validation.

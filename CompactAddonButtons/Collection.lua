@@ -4,12 +4,19 @@ ns.Collection = Collection
 local unpack = unpack or table.unpack
 
 local function snapshot(button)
-    local saved = { parent = button:GetParent(), points = {},
-        strata = button:GetFrameStrata(), level = button:GetFrameLevel(),
+    local saved = {
+        parent = button:GetParent(),
+        points = {},
+        strata = button:GetFrameStrata(),
+        level = button:GetFrameLevel(),
         fixedStrata = button.HasFixedFrameStrata and button:HasFixedFrameStrata(),
         fixedLevel = button.HasFixedFrameLevel and button:HasFixedFrameLevel(),
-        dragStart = button:GetScript("OnDragStart"), dragStop = button:GetScript("OnDragStop") }
-    for i = 1, button:GetNumPoints() do saved.points[i] = { button:GetPoint(i) } end
+        dragStart = button:GetScript("OnDragStart"),
+        dragStop = button:GetScript("OnDragStop"),
+    }
+    for i = 1, button:GetNumPoints() do
+        saved.points[i] = { button:GetPoint(i) }
+    end
     return saved
 end
 
@@ -20,8 +27,7 @@ end
 local function placed(button, slot)
     if button:GetParent() ~= slot or button:GetNumPoints() ~= 1 then return false end
     local point, relative, relativePoint, x, y = button:GetPoint(1)
-    return point == "CENTER" and relative == slot and relativePoint == "CENTER"
-        and (x or 0) == 0 and (y or 0) == 0
+    return point == "CENTER" and relative == slot and relativePoint == "CENTER" and (x or 0) == 0 and (y or 0) == 0
 end
 
 function Collection.Anchor(entry)
@@ -54,7 +60,9 @@ function Collection.Release(entry)
     if button.SetFixedFrameStrata and saved.fixedStrata ~= nil then button:SetFixedFrameStrata(saved.fixedStrata) end
     if button.SetFixedFrameLevel and saved.fixedLevel ~= nil then button:SetFixedFrameLevel(saved.fixedLevel) end
     button:ClearAllPoints()
-    for _, point in ipairs(saved.points) do button:SetPoint(unpack(point)) end
+    for _, point in ipairs(saved.points) do
+        button:SetPoint(unpack(point))
+    end
     button:SetScript("OnDragStart", saved.dragStart)
     button:SetScript("OnDragStop", saved.dragStop)
     entry.slot:Hide()

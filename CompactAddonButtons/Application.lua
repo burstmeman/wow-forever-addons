@@ -47,11 +47,17 @@ end
 
 function App.Apply()
     if not ready then return end
-    if InCombatLockdown() then pending = true; return end
+    if InCombatLockdown() then
+        pending = true
+        return
+    end
     pending = false
     for _, entry in ipairs(ns.Buttons.All()) do
-        if ns.Settings.IsException(entry.key) then ns.Collection.Release(entry)
-        else ns.Collection.Collect(entry, ns.Window.CreateSlot) end
+        if ns.Settings.IsException(entry.key) then
+            ns.Collection.Release(entry)
+        else
+            ns.Collection.Collect(entry, ns.Window.CreateSlot)
+        end
     end
     ns.Window.Refresh()
 end
@@ -62,15 +68,21 @@ end
 
 function App.Scan()
     if not ready then return end
-    if InCombatLockdown() then pending = true; return end
+    if InCombatLockdown() then
+        pending = true
+        return
+    end
     scanChanged = false
     ns.Discovery.Scan(noteDiscovered)
     sortButtons()
     -- Opening the window refreshes it. A closed window only needs Collect when
     -- discovery changed the catalog or combat deferred a parent change. Text
     -- still follows language changes while the window is hidden.
-    if scanChanged or pending or ns.Window.IsShown() then App.Apply()
-    else ns.Window.Refresh() end
+    if scanChanged or pending or ns.Window.IsShown() then
+        App.Apply()
+    else
+        ns.Window.Refresh()
+    end
 end
 
 function App.Start()
@@ -113,12 +125,22 @@ end
 
 function App.RegisterButton(key, label, button)
     local buttonType = type(button)
-    if type(key) ~= "string" or key == "" or (buttonType ~= "table" and buttonType ~= "userdata")
-        or type(button.GetName) ~= "function" or type(button.IsObjectType) ~= "function"
-        or not button:IsObjectType("Frame") then return false end
+    if
+        type(key) ~= "string"
+        or key == ""
+        or (buttonType ~= "table" and buttonType ~= "userdata")
+        or type(button.GetName) ~= "function"
+        or type(button.IsObjectType) ~= "function"
+        or not button:IsObjectType("Frame")
+    then
+        return false
+    end
     if label ~= nil and (type(label) ~= "string" or label == "") then return false end
     local added = register("custom:" .. key, label or key, button)
-    if added and ready then sortButtons(); App.Apply() end
+    if added and ready then
+        sortButtons()
+        App.Apply()
+    end
     return added
 end
 

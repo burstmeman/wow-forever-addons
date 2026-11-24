@@ -5,7 +5,8 @@ local T, max = ns.Localization.Text, math.max
 local launcher
 
 local rounded = {
-    ROUND = { true, true, true, true }, SQUARE = {},
+    ROUND = { true, true, true, true },
+    SQUARE = {},
     ["CORNER-TOPLEFT"] = { false, false, false, true },
     ["CORNER-TOPRIGHT"] = { false, false, true, false },
     ["CORNER-BOTTOMLEFT"] = { false, true, false, false },
