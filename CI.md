@@ -60,6 +60,15 @@ itself enable branch protection; configure that separately in repository setting
 ## Security policy and limits
 
 Lua runtime code is checked with Luacheck against `.github/ci/luacheckrc`.
+Lua formatting is checked with StyLua 2.6.0. `python .github/ci/lua_format.py setup`
+downloads the checksum-pinned release archive for the current platform and writes
+the binary under `.tools/`, which is not committed. `check` runs StyLua in check
+mode against every `.lua` file in the addon, including tests. `fix` rewrites those
+files. Both commands pass the repository `stylua.toml` with `--config-path` and
+`--no-editorconfig`, and they pass files explicitly, so an addon config,
+`.styluaignore`, or `.editorconfig` cannot replace the style. Inline `stylua:`
+directives are rejected. The addon job and the release build run `check`.
+
 That file is the shared UI API allowlist and is passed with `--config`, so an
 addon directory cannot replace it with its own config or an inline directive.
 New WoW APIs are added there. An addon's own exports are `security.globals` in

@@ -3,34 +3,60 @@ local ns, frames, stats = TestUI.ns, TestUI.frames, TestUI.stats
 TestUI.SetCombat(false)
 ns.App.SetLanguage("enUS")
 ns.App.SetColumns(6)
-for _, entry in ipairs(ns.Buttons.All()) do ns.App.SetException(entry.key, false) end
+for _, entry in ipairs(ns.Buttons.All()) do
+    ns.App.SetException(entry.key, false)
+end
 for i = 1, 25 do
-    ns.App.Toggle(true); ns.Window.Close()
-    ns.App.Toggle(false); ns.Window.Close()
+    ns.App.Toggle(true)
+    ns.Window.Close()
+    ns.App.Toggle(false)
+    ns.Window.Close()
 end
 local sorts, originalSort = 0, ns.Buttons.Sort
-ns.Buttons.Sort = function(...) sorts = sorts + 1; return originalSort(...) end
+ns.Buttons.Sort = function(...)
+    sorts = sorts + 1
+    return originalSort(...)
+end
 local function sample()
     collectgarbage("collect")
-    return { frames = #frames, hooks = stats.hooks, menus = stats.menus,
-        choices = stats.choices, textWrites = stats.textWrites,
-        pointWrites = stats.pointWrites, memory = collectgarbage("count"), sorts = sorts }
+    return {
+        frames = #frames,
+        hooks = stats.hooks,
+        menus = stats.menus,
+        choices = stats.choices,
+        textWrites = stats.textWrites,
+        pointWrites = stats.pointWrites,
+        memory = collectgarbage("count"),
+        sorts = sorts,
+    }
 end
 local function phase(name, count, callback)
     local before = sample()
     local started = os.clock()
-    for i = 1, count do callback(i) end
+    for i = 1, count do
+        callback(i)
+    end
     local elapsed = os.clock() - started
     local after = sample()
-    local result = { name = name, iterations = count, seconds = elapsed,
-        retainedKiB = after.memory - before.memory, frames = after.frames - before.frames,
-        hooks = after.hooks - before.hooks, menus = after.menus - before.menus,
-        choices = after.choices - before.choices, textWrites = after.textWrites - before.textWrites,
-        pointWrites = after.pointWrites - before.pointWrites, sorts = after.sorts - before.sorts }
+    local result = {
+        name = name,
+        iterations = count,
+        seconds = elapsed,
+        retainedKiB = after.memory - before.memory,
+        frames = after.frames - before.frames,
+        hooks = after.hooks - before.hooks,
+        menus = after.menus - before.menus,
+        choices = after.choices - before.choices,
+        textWrites = after.textWrites - before.textWrites,
+        pointWrites = after.pointWrites - before.pointWrites,
+        sorts = after.sorts - before.sorts,
+    }
     return result
 end
 local events
-for _, frame in ipairs(frames) do if frame.events.PLAYER_LOGIN then events = frame end end
+for _, frame in ipairs(frames) do
+    if frame.events.PLAYER_LOGIN then events = frame end
+end
 local results = {}
 ns.Window.Close()
 results[#results + 1] = phase("idle-two-hours", 3600, function() events.scripts.OnUpdate(events, 2) end)
@@ -39,8 +65,10 @@ ns.App.Toggle(false)
 results[#results + 1] = phase("visible-scans", 1000, function() ns.App.Scan() end)
 ns.Window.Close()
 results[#results + 1] = phase("open-close", 1000, function()
-    ns.App.Toggle(true); ns.Window.Close()
-    ns.App.Toggle(false); ns.Window.Close()
+    ns.App.Toggle(true)
+    ns.Window.Close()
+    ns.App.Toggle(false)
+    ns.Window.Close()
 end)
 results[#results + 1] = phase("exception-toggle", 1000, function()
     local entry = ns.Buttons.All()[1]

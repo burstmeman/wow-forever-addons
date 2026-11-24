@@ -24,6 +24,7 @@ function Buttons.Sort()
     end)
 end
 function Buttons.Matches(entry, query)
-    return query == "" or entry.label:lower():find(query, 1, true) ~= nil
+    return query == ""
+        or entry.label:lower():find(query, 1, true) ~= nil
         or entry.key:lower():find(query, 1, true) ~= nil
 end

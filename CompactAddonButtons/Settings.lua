@@ -3,21 +3,33 @@ local Settings = {}
 ns.Settings = Settings
 Settings.MIN_COLUMNS, Settings.MAX_COLUMNS = 1, 12
 local db
-local anchors = { CENTER = true, TOP = true, BOTTOM = true, LEFT = true, RIGHT = true,
-    TOPLEFT = true, TOPRIGHT = true, BOTTOMLEFT = true, BOTTOMRIGHT = true }
+local anchors = {
+    CENTER = true,
+    TOP = true,
+    BOTTOM = true,
+    LEFT = true,
+    RIGHT = true,
+    TOPLEFT = true,
+    TOPRIGHT = true,
+    BOTTOMLEFT = true,
+    BOTTOMRIGHT = true,
+}
 
-local function finite(value)
-    return type(value) == "number" and value == value and math.abs(value) < math.huge
-end
+local function finite(value) return type(value) == "number" and value == value and math.abs(value) < math.huge end
 
 local function validPosition(position)
-    return type(position) == "table" and anchors[position[1]] and anchors[position[2]]
-        and finite(position[3]) and finite(position[4])
+    return type(position) == "table"
+        and anchors[position[1]]
+        and anchors[position[2]]
+        and finite(position[3])
+        and finite(position[4])
 end
 
 local function validColumns(value)
-    return finite(value) and value == math.floor(value)
-        and value >= Settings.MIN_COLUMNS and value <= Settings.MAX_COLUMNS
+    return finite(value)
+        and value == math.floor(value)
+        and value >= Settings.MIN_COLUMNS
+        and value <= Settings.MAX_COLUMNS
 end
 
 function Settings.Initialize()
@@ -36,7 +48,9 @@ function Settings.Initialize()
 end
 
 function Settings.GetAngle() return db.angle end
-function Settings.SetAngle(value) if finite(value) then db.angle = value % 360 end end
+function Settings.SetAngle(value)
+    if finite(value) then db.angle = value % 360 end
+end
 function Settings.GetPosition() return unpack(db.position) end
 function Settings.SetPosition(point, relativePoint, x, y)
     local position = { point, relativePoint, x, y }

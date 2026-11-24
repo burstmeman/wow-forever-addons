@@ -7,11 +7,18 @@ end
 
 events:SetScript("OnEvent", function(_, event, name)
     if event == "ADDON_LOADED" then
-        if name == addonName then ns.App.Initialize()
-        elseif ns.App.IsReady() then elapsed = SCAN_INTERVAL end
-    elseif event == "PLAYER_LOGIN" then ns.App.Start()
-    elseif event == "PLAYER_REGEN_DISABLED" then ns.App.OnCombatStart()
-    elseif event == "PLAYER_REGEN_ENABLED" then ns.App.OnCombatEnd() end
+        if name == addonName then
+            ns.App.Initialize()
+        elseif ns.App.IsReady() then
+            elapsed = SCAN_INTERVAL
+        end
+    elseif event == "PLAYER_LOGIN" then
+        ns.App.Start()
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        ns.App.OnCombatStart()
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        ns.App.OnCombatEnd()
+    end
 end)
 
 events:SetScript("OnUpdate", function(_, delta)
@@ -28,6 +35,9 @@ SLASH_COMPACTADDONBUTTONS3 = "/bab"
 SLASH_COMPACTADDONBUTTONS4 = "/betteraddonbuttons"
 SlashCmdList.COMPACTADDONBUTTONS = function(message)
     local command = (message or ""):lower():match("^%s*(.-)%s*$")
-    if command == "refresh" then ns.App.Scan()
-    else ns.App.Toggle(command == "settings" or command == "options") end
+    if command == "refresh" then
+        ns.App.Scan()
+    else
+        ns.App.Toggle(command == "settings" or command == "options")
+    end
 end

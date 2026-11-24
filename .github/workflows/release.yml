@@ -52,6 +52,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends lua5.1 luarocks
           sudo luarocks --lua-version=5.1 install luacheck 1.2.0-1
+      - name: Install pinned StyLua
+        run: python .github/ci/lua_format.py setup
+      - name: Check Lua formatting
+        env:
+          ADDON: ${{ steps.target.outputs.addon }}
+        run: python .github/ci/lua_format.py check "$ADDON"
       - name: Prepare pinned LuaSrcDiet
         run: python .github/ci/lua_minify.py setup
       - run: python -m unittest discover -s .github/ci -p 'test_*.py' -v

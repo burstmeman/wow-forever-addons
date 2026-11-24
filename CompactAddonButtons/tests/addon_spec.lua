@@ -33,14 +33,21 @@ local lib = {
     GetButtonList = function() return { "Alpha", "Hidden" } end,
     GetMinimapButton = function(_, name) return name == "Alpha" and alpha or hidden end,
 }
-LibStub = function(name) assert(name == "LibDBIcon-1.0"); return lib end
+LibStub = function(name)
+    assert(name == "LibDBIcon-1.0")
+    return lib
+end
 
 -- Malformed persisted settings must recover before any frame is positioned.
-CompactAddonButtonsDB = { exceptions = false, position = { "INVALID", "CENTER", 0, 0 }, angle = 0/0, columns = false }
+CompactAddonButtonsDB = { exceptions = false, position = { "INVALID", "CENTER", 0, 0 }, angle = 0 / 0, columns = false }
 local legacySettings
 if TEST_LEGACY then
-    legacySettings = { exceptions = { ["lib:LegacyOnly"] = true }, angle = 131,
-        position = { "TOP", "TOP", 15, -20 }, columns = 99 }
+    legacySettings = {
+        exceptions = { ["lib:LegacyOnly"] = true },
+        angle = 131,
+        position = { "TOP", "TOP", 15, -20 },
+        columns = 99,
+    }
     BetterAddonButtonsDB, CompactAddonButtonsDB = legacySettings, nil
 else
     -- Stale legacy data must never overwrite an already existing current database.
@@ -52,7 +59,9 @@ for line in io.lines(ADDON_PATH .. "/CompactAddonButtons.toc") do
     if line:match("%.lua$") then assert(loadfile(ADDON_PATH .. "/" .. line))("CompactAddonButtons", ns) end
 end
 local events
-for _, frame in ipairs(frames) do if frame.events.PLAYER_LOGIN then events = frame end end
+for _, frame in ipairs(frames) do
+    if frame.events.PLAYER_LOGIN then events = frame end
+end
 local function fire(event, ...) events.scripts.OnEvent(events, event, ...) end
 fire("ADDON_LOADED", "CompactAddonButtons")
 local custom = button("UnusualButton", UIParent)
@@ -64,7 +73,11 @@ assert(not ns.App.IsReady(), "early registration must not create slots")
 fire("PLAYER_LOGIN")
 if TEST_LEGACY then
     assert(CompactAddonButtonsDB == legacySettings and CompactAddonButtonsDB.exceptions["lib:LegacyOnly"])
-    assert(CompactAddonButtonsDB.angle == 131 and CompactAddonButtonsDB.position[1] == "TOP" and CompactAddonButtonsDB.position[3] == 15)
+    assert(
+        CompactAddonButtonsDB.angle == 131
+            and CompactAddonButtonsDB.position[1] == "TOP"
+            and CompactAddonButtonsDB.position[3] == 15
+    )
 else
     assert(CompactAddonButtonsDB.angle == 220 and CompactAddonButtonsDB.position[1] == "CENTER")
 end
@@ -81,34 +94,52 @@ assert(not ns.Window.GetFrame():IsShown() and not alpha:IsVisible())
 assert(not hidden:IsShown(), "addon-hidden state must survive collection")
 assert(alpha.width == 31 and alpha.height == 29, "original hit geometry is unchanged")
 assert(alpha:GetScript("OnDragStart") == nil)
-assert(not alpha:HasFixedFrameStrata() and not alpha:HasFixedFrameLevel(),
-    "LibDBIcon fixed minimap layering must be suspended inside the drawer")
+assert(
+    not alpha:HasFixedFrameStrata() and not alpha:HasFixedFrameLevel(),
+    "LibDBIcon fixed minimap layering must be suspended inside the drawer"
+)
 
 ns.App.Toggle(false)
 assert(ns.Window.GetFrame():IsShown() and alpha:IsVisible())
 local alphaSlot = ns.Buttons.Find(alpha).slot
 local alphaGrid = alphaSlot:GetParent()
-assert(alphaGrid:GetFrameStrata() == ns.Window.GetFrame():GetFrameStrata()
-    and alphaSlot:GetFrameStrata() == alphaGrid:GetFrameStrata()
-    and alpha:GetFrameStrata() == alphaGrid:GetFrameStrata(),
-    "the entire icon hierarchy must be above the dialog backdrop without implicit strata inheritance")
-assert(alphaGrid:GetFrameLevel() > ns.Window.GetFrame():GetFrameLevel()
-    and alphaSlot:GetFrameLevel() > alphaGrid:GetFrameLevel()
-    and alpha:GetFrameLevel() > alphaSlot:GetFrameLevel())
-assert(ns.Window.GetFrame():GetWidth() == 134 and ns.Window.GetFrame():GetHeight() == 38, "four buttons need only one compact row")
+assert(
+    alphaGrid:GetFrameStrata() == ns.Window.GetFrame():GetFrameStrata()
+        and alphaSlot:GetFrameStrata() == alphaGrid:GetFrameStrata()
+        and alpha:GetFrameStrata() == alphaGrid:GetFrameStrata(),
+    "the entire icon hierarchy must be above the dialog backdrop without implicit strata inheritance"
+)
+assert(
+    alphaGrid:GetFrameLevel() > ns.Window.GetFrame():GetFrameLevel()
+        and alphaSlot:GetFrameLevel() > alphaGrid:GetFrameLevel()
+        and alpha:GetFrameLevel() > alphaSlot:GetFrameLevel()
+)
+assert(
+    ns.Window.GetFrame():GetWidth() == 134 and ns.Window.GetFrame():GetHeight() == 38,
+    "four buttons need only one compact row"
+)
 local popupPoint, popupRelative, popupRelativePoint, popupX = ns.Window.GetFrame():GetPoint()
-assert(popupPoint == "BOTTOMLEFT" and popupRelative == ns.MinimapButton.GetFrame()
-    and popupRelativePoint == "BOTTOMRIGHT" and popupX == 6, "popup must be next to the launcher")
+assert(
+    popupPoint == "BOTTOMLEFT"
+        and popupRelative == ns.MinimapButton.GetFrame()
+        and popupRelativePoint == "BOTTOMRIGHT"
+        and popupX == 6,
+    "popup must be next to the launcher"
+)
 ns.MinimapButton.GetFrame().centerX, ns.MinimapButton.GetFrame().centerY = 1800, 900
 ns.Window.Refresh()
 assert(ns.Window.GetFrame():GetPoint() == "TOPRIGHT", "upper-right launcher opens toward the screen interior")
-ns.MinimapButton.GetFrame().centerX, ns.MinimapButton.GetFrame().centerY, ns.MinimapButton.GetFrame().scale = 950, 500, 2
+ns.MinimapButton.GetFrame().centerX, ns.MinimapButton.GetFrame().centerY, ns.MinimapButton.GetFrame().scale =
+    950, 500, 2
 ns.Window.Refresh()
 assert(ns.Window.GetFrame():GetPoint() == "TOPRIGHT", "anchor selection respects effective UI scale")
-ns.MinimapButton.GetFrame().centerX, ns.MinimapButton.GetFrame().centerY, ns.MinimapButton.GetFrame().scale = nil, nil, nil
+ns.MinimapButton.GetFrame().centerX, ns.MinimapButton.GetFrame().centerY, ns.MinimapButton.GetFrame().scale =
+    nil, nil, nil
 assert(TestUI.MouseTarget(alpha) == alpha, "the popup panel must not intercept collected button input")
-assert(TestUI.MouseTarget(beta) == beta and TestUI.MouseTarget(custom) == custom,
-    "buttons with different original strata must remain clickable in the drawer")
+assert(
+    TestUI.MouseTarget(beta) == beta and TestUI.MouseTarget(custom) == custom,
+    "buttons with different original strata must remain clickable in the drawer"
+)
 TestUI.MouseTarget(alpha).scripts.OnClick(alpha, "RightButton")
 TestUI.MouseTarget(alpha).scripts.OnEnter(alpha)
 assert(clicked == 1 and hovered == 1, "real scripts must be preserved")
@@ -125,7 +156,10 @@ assert(alpha:GetParent() == slot, "external positioning must not leak a collecte
 -- Settings mode contains every discovered entry, including exceptions and addon-hidden buttons.
 ns.App.Toggle(true)
 assert(ns.Window.GetFrame():IsShown() and not slot:IsShown())
-assert(ns.Window.GetFrame():GetWidth() == 384 and ns.Window.GetFrame():GetHeight() == 432, "settings keep a readable layout")
+assert(
+    ns.Window.GetFrame():GetWidth() == 384 and ns.Window.GetFrame():GetHeight() == 432,
+    "settings keep a readable layout"
+)
 assert(select(2, ns.Window.GetFrame():GetPoint()) == UIParent, "settings use their saved independent position")
 local check
 for _, frame in ipairs(frames) do
@@ -138,10 +172,14 @@ alpha:SetFrameLevel(0)
 check:SetChecked(true)
 check.scripts.OnClick(check)
 assert(CompactAddonButtonsDB.exceptions["lib:Alpha"] and alpha:GetParent() == Minimap)
-assert(alpha:HasFixedFrameStrata() and alpha:HasFixedFrameLevel(),
-    "excluding a button must restore its original fixed-layer flags")
-assert(alpha:GetFrameStrata() == "MEDIUM" and alpha:GetFrameLevel() == 11,
-    "exceptions must regain their original stacking order immediately, without reloading")
+assert(
+    alpha:HasFixedFrameStrata() and alpha:HasFixedFrameLevel(),
+    "excluding a button must restore its original fixed-layer flags"
+)
+assert(
+    alpha:GetFrameStrata() == "MEDIUM" and alpha:GetFrameLevel() == 11,
+    "exceptions must regain their original stacking order immediately, without reloading"
+)
 assert(alpha:GetNumPoints() == 2)
 local point, relative, relativePoint, x, y = alpha:GetPoint()
 assert(point == "TOPLEFT" and relative == Minimap and relativePoint == "BOTTOMRIGHT" and x == 13 and y == -9)
@@ -157,8 +195,10 @@ alpha:SetFrameLevel(4)
 beta:SetFrameStrata("BACKGROUND")
 beta:SetFrameLevel(0)
 ns.App.SetException("frame:BetaMinimapButton", true)
-assert(beta:GetParent() == MinimapBackdrop and beta:GetFrameStrata() == "HIGH" and beta:GetFrameLevel() == 23,
-    "backdrop buttons must retain their own strata and level")
+assert(
+    beta:GetParent() == MinimapBackdrop and beta:GetFrameStrata() == "HIGH" and beta:GetFrameLevel() == 23,
+    "backdrop buttons must retain their own strata and level"
+)
 ns.App.SetException("frame:BetaMinimapButton", false)
 ns.App.Toggle(false)
 assert(alpha:IsVisible())
@@ -184,15 +224,23 @@ assert(not ns.Buttons.Find(afterLogin), "no scanning or moving UI during combat"
 TestUI.SetCombat(false)
 fire("PLAYER_REGEN_ENABLED")
 assert(not ns.App.IsPending() and alpha:GetParent() == Minimap)
-assert(alpha:GetFrameStrata() == "MEDIUM" and alpha:GetFrameLevel() == 11,
-    "repeated collection and combat-deferred release must restore stacking order")
+assert(
+    alpha:GetFrameStrata() == "MEDIUM" and alpha:GetFrameLevel() == 11,
+    "repeated collection and combat-deferred release must restore stacking order"
+)
 assert(ns.Buttons.Find(afterLogin).collected)
 
 -- LibDBIcon can become available after a fallback button has already been collected.
 ns.App.SetException("frame:LateMinimapButton", true)
 lib.GetButtonList = function() return { "Alpha", "Hidden", "Late" } end
 lib.GetMinimapButton = function(_, name)
-    if name == "Alpha" then return alpha elseif name == "Hidden" then return hidden else return late end
+    if name == "Alpha" then
+        return alpha
+    elseif name == "Hidden" then
+        return hidden
+    else
+        return late
+    end
 end
 ns.App.Scan()
 assert(ns.Buttons.Find(late).key == "lib:Late" and CompactAddonButtonsDB.exceptions["lib:Late"])
@@ -213,7 +261,10 @@ for _, frame in ipairs(frames) do
     if frame.kind == "CheckButton" then assert(not frame:IsShown()) end
 end
 ns.App.Toggle(false)
-assert(ns.Window.GetFrame():IsShown() and ns.Buttons.Find(beta).slot:IsShown(), "settings search must not filter the popup")
+assert(
+    ns.Window.GetFrame():IsShown() and ns.Buttons.Find(beta).slot:IsShown(),
+    "settings search must not filter the popup"
+)
 assert(not search:IsShown(), "popup contains only addon icons")
 ns.App.Toggle(true)
 search:SetText("")
@@ -245,7 +296,9 @@ local _, _, _, launcherX, launcherY = ns.MinimapButton.GetFrame():GetPoint()
 assert(math.abs(launcherX - 57) < 0.01 and math.abs(launcherY - 57) < 0.01)
 
 -- A large addon collection expands into full rows without a scroll frame.
-for i = 1, 35 do button("Extra" .. i .. "MinimapButton") end
+for i = 1, 35 do
+    button("Extra" .. i .. "MinimapButton")
+end
 ns.App.Scan()
 ns.App.Toggle(false)
 local popupScroll = CompactAddonButtonsScroll
@@ -279,14 +332,16 @@ for value = 1, 12 do
     assert(grid:GetHeight() == rowCount * 32, "all rows must fit without clipping")
     for i, entry in ipairs(visible) do
         local _, x, y = entry.slot:GetPoint()
-        assert(x == ((i - 1) % value) * 32 and y == -math.floor((i - 1) / value) * 32,
-            "changing columns must reflow every visible button")
+        assert(
+            x == ((i - 1) % value) * 32 and y == -math.floor((i - 1) / value) * 32,
+            "changing columns must reflow every visible button"
+        )
     end
     ns.App.Toggle(true)
 end
 ns.Settings.Initialize()
 assert(ns.Settings.GetColumns() == 12, "columns must survive saved-settings initialization")
-for _, invalid in ipairs({ false, "4", 0, 13, 1.5, 0/0, math.huge }) do
+for _, invalid in ipairs({ false, "4", 0, 13, 1.5, 0 / 0, math.huge }) do
     assert(not ns.App.SetColumns(invalid) and ns.Settings.GetColumns() == 12)
 end
 assert(not ns.App.SetColumns(nil))
@@ -303,5 +358,7 @@ assert(ns.Window.GetFrame():GetWidth() == 70, "combat-deferred columns apply aft
 assert(ns.App.SetColumns(6))
 
 -- An empty popup remains small and contains a useful empty-state message.
-for _, entry in ipairs(ns.Buttons.All()) do ns.App.SetException(entry.key, true) end
+for _, entry in ipairs(ns.Buttons.All()) do
+    ns.App.SetException(entry.key, true)
+end
 assert(ns.Window.GetFrame():GetWidth() == 210 and ns.Window.GetFrame():GetHeight() == 38)

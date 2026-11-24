@@ -27,9 +27,7 @@ local function rowAt(index)
     row.label:SetWidth(270)
     row.label:SetJustifyH("LEFT")
     row:SetHitRectInsets(0, -280, 0, 0)
-    row:SetScript("OnClick", function(self)
-        ns.App.SetException(self.entry.key, self:GetChecked())
-    end)
+    row:SetScript("OnClick", function(self) ns.App.SetException(self.entry.key, self:GetChecked()) end)
     row:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.entry.label)
@@ -139,8 +137,12 @@ function Window.Refresh(force)
     end
     -- Do not hide and re-show every button on each scan: addon OnShow/OnHide scripts
     -- may have side effects, even though the visible layout has not changed.
-    for _, slot in ipairs(slots) do slot:SetShown(activeSlots[slot] == true) end
-    for i, row in ipairs(rows) do row:SetShown(settingsMode and i <= count) end
+    for _, slot in ipairs(slots) do
+        slot:SetShown(activeSlots[slot] == true)
+    end
+    for i, row in ipairs(rows) do
+        row:SetShown(settingsMode and i <= count)
+    end
     if settingsMode then content:SetHeight(max(1, count * 30)) end
     empty:SetShown(count == 0)
     modeButton:SetText(settingsMode and T("BACK") or T("SETTINGS"))
@@ -161,7 +163,10 @@ local function setMode(value)
 end
 
 function Window.Toggle(settings)
-    if panel:IsShown() and settings == settingsMode then panel:Hide(); return end
+    if panel:IsShown() and settings == settingsMode then
+        panel:Hide()
+        return
+    end
     setMode(settings == true)
     panel:Show()
 end
@@ -191,7 +196,10 @@ function Window.Create()
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function() panel:StartMoving() end)
-    header:SetScript("OnDragStop", function() panel:StopMovingOrSizing(); savePosition() end)
+    header:SetScript("OnDragStop", function()
+        panel:StopMovingOrSizing()
+        savePosition()
+    end)
     title = text(header, "GameFontNormalLarge", T("TITLE"), 16, -14)
     close = CreateFrame("Button", nil, panel, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -2, -2)
@@ -240,7 +248,10 @@ function Window.Create()
     search:SetPoint("TOPLEFT", 20, -120)
     search:SetAutoFocus(false)
     search:SetMaxLetters(100)
-    search:SetScript("OnEscapePressed", function(self) self:ClearFocus(); panel:Hide() end)
+    search:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        panel:Hide()
+    end)
     search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     search:SetScript("OnTextChanged", function(self)
         query = self:GetText():lower()
@@ -249,7 +260,10 @@ function Window.Create()
         Window.Refresh()
     end)
     search.hint = text(search, "GameFontDisableSmall", T("SEARCH"), 0, -5)
-    panel:SetScript("OnHide", function() search:ClearFocus(); GameTooltip:Hide() end)
+    panel:SetScript("OnHide", function()
+        search:ClearFocus()
+        GameTooltip:Hide()
+    end)
 
     -- Keep the icon grid outside the settings scroll frame so it cannot scroll or clip.
     gridContent = CreateFrame("Frame", nil, panel)
@@ -270,7 +284,6 @@ function Window.Create()
     footer = text(panel, "GameFontDisableSmall", T("HINT"), 16, -(HEIGHT - 48))
     footer:SetWidth(340)
     footer:SetJustifyH("LEFT")
-
 end
 
 function Window.GetFrame() return panel end
