@@ -4,8 +4,6 @@
 
 A minimap button drawer for World of Warcraft: Forever, Interface 16001. It has no required libraries and no required addons.
 
-Version **1.2.11**.
-
 ## Installation
 
 Copy the entire `CompactAddonButtons` directory into the Forever client's `Interface/AddOns/` directory. The manifest must be at `Interface/AddOns/CompactAddonButtons/CompactAddonButtons.toc`, with no extra directory wrapped around it. Restart the client or reload the UI, then enable Compact Addon Buttons in the addon list.

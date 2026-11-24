@@ -20,9 +20,8 @@ Open Actions, then Next addon version, then Run workflow, on `main`:
 2. Select `patch`, `minor`, or `major`. The default is `patch`. From 1.2.8 these
    yield 1.2.9, 1.3.0, and 2.0.0. Optional release notes become the changelog.
 3. Run the workflow. It opens a pull request that changes only the selected
-   manifest's version, the README version label when that label is present, and
-   a release request under `release-requests/`. It does not publish, and it does
-   not change the game installation.
+   manifest's version and a release request under `release-requests/`. It does
+   not publish, and it does not change the game installation.
 4. Review that pull request and merge it after CI passes. A second job checks
    that the bot pull request contains exactly the generated files, creates the
    addon tag at the merge commit, creates a draft GitHub Release, and dispatches
