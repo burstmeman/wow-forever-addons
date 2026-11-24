@@ -24,6 +24,13 @@ directory, without a shell. Use `python` as the executable to select CI's Python
 as declared Python test dependencies. Add test setup support to the shared runner
 when another toolchain is needed. No per-addon workflow is required.
 
+Lua suites call `.github/ci/lua_tests.py`. The addon's `tests/run.py` names its
+specs in order and does not hardcode the directory: the locale matrix and
+`ADDON_RUNTIME_PATH` handling are shared. Specs in the main list share one Lua
+state. A spec named in `once` runs a single time after that matrix. Release
+settings stay on that addon's `release` entry, so each directory keeps its own
+tag and CurseForge project.
+
 CI rejects committed `.toc` files outside registered addon directories. It also
 rejects duplicate or overlapping paths, unknown fields, unsafe paths, invalid
 statuses, and release/beta entries without tests. Directories not committed to Git
@@ -52,16 +59,21 @@ itself enable branch protection; configure that separately in repository setting
 
 ## Security policy and limits
 
-Lua runtime code is checked with Luacheck against a minimal UI API allowlist.
-New global APIs or exports require a visible policy change. Tests are excluded from
-the runtime API restriction because their harness needs file loading. Runtime
-manifests cannot load test files, files outside the addon, or XML scripts.
+Lua runtime code is checked with Luacheck against `.github/ci/luacheckrc`.
+That file is the shared UI API allowlist and is passed with `--config`, so an
+addon directory cannot replace it with its own config or an inline directive.
+New WoW APIs are added there. An addon's own exports are `security.globals` in
+`addons.yml` and are passed as writable globals for that directory only. Tests
+are excluded from the runtime API restriction because their harness needs file
+loading. Runtime manifests cannot load test files, files outside the addon, or
+XML scripts.
 
-Additional token-aware checks reject common messaging/network APIs, dynamic code
-execution, environment/reflection access, encoded string payloads, network URLs,
-and inline lint suppression. `_G` is permitted only for explicitly declared literal
-UI lookups. Addons requiring communication or additional game APIs need a deliberate
-reviewed extension of the common policy; silently disabling it is not supported.
+A smaller scanner rejects `_G` lookups that are not an allowlisted literal,
+encoded string payloads, network URLs, and inline lint suppression. Messaging,
+loader, and filesystem globals are absent from the Luacheck allowlist, so using
+them fails the lint. Addons requiring communication or additional game APIs
+need a deliberate reviewed extension of the common policy; silently disabling
+it is not supported.
 These rules are intentionally conservative and can flag legitimate new features.
 
 Gitleaks looks for credential patterns in PR commits; `pip-audit` checks declared
