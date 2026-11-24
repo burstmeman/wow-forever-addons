@@ -109,7 +109,7 @@ ns.App.SetColumns(6)
 builds = stats.menus
 local label = ns.Localization.Text("SCAN")
 assert(ns.Localization.Register("enUS", "English", { SCAN = "Updated scan label" }))
-assert(stats.menus == builds + 2, "translation registration must invalidate labels and both menus")
+assert(stats.menus == builds + 3, "translation registration must invalidate labels and every menu")
 ns.Localization.Register("enUS", "English", { SCAN = label })
 
 -- Discovery remains active, while each genuinely new entry is hooked/sorted once.

@@ -83,6 +83,11 @@ else
 end
 assert(BetterAddonButtonsDB == nil and BetterAddonButtons == CompactAddonButtons)
 assert(ns.Settings.GetColumns() == 6, "invalid or migrated columns must default to six")
+assert(not ns.Settings.GetPopupManual(), "the button window follows the screen until placement is chosen")
+assert(
+    ns.Settings.GetPopupAnchor() == "LEFT" and ns.Settings.GetPopupOffset() == 6,
+    "manual placement starts on the left, six pixels from the launcher"
+)
 assert(SLASH_COMPACTADDONBUTTONS1 == "/cab" and SLASH_COMPACTADDONBUTTONS3 == "/bab")
 assert(#ns.Buttons.All() == 5, "discover LibDBIcon, fallback, backdrop, hidden, and custom buttons once")
 assert(ns.Buttons.Find(alpha).key == "lib:Alpha")
@@ -135,6 +140,25 @@ ns.Window.Refresh()
 assert(ns.Window.GetFrame():GetPoint() == "TOPRIGHT", "anchor selection respects effective UI scale")
 ns.MinimapButton.GetFrame().centerX, ns.MinimapButton.GetFrame().centerY, ns.MinimapButton.GetFrame().scale =
     nil, nil, nil
+ns.Window.Refresh()
+assert(ns.Window.GetFrame():GetPoint() == "BOTTOMLEFT", "clearing the launcher position restores the near side")
+assert(ns.App.SetPopup("RIGHT", 12) and ns.Window.GetFrame():GetPoint() == "BOTTOMLEFT")
+assert(ns.App.SetPopupManual(true))
+local rightPoint, rightRelative, rightRelativePoint, rightX, rightY = ns.Window.GetFrame():GetPoint()
+assert(
+    rightPoint == "LEFT"
+        and rightRelative == ns.MinimapButton.GetFrame()
+        and rightRelativePoint == "RIGHT"
+        and rightX == 12
+        and rightY == 0,
+    "manual placement can put the window to the right of the launcher"
+)
+local cornerPoint, cornerRelative, cornerX, cornerY = ns.Window.PopupPoint("TOPLEFT", 4)
+assert(cornerPoint == "BOTTOMRIGHT" and cornerRelative == "TOPLEFT" and cornerX == -4 and cornerY == 4)
+assert(not ns.App.SetPopup("CENTER", 4) and ns.Settings.GetPopupAnchor() == "RIGHT")
+assert(not ns.App.SetPopup("LEFT", -1) and ns.Settings.GetPopupOffset() == 12)
+assert(ns.App.SetPopupManual(false) and ns.Window.GetFrame():GetPoint() == "BOTTOMLEFT")
+assert(ns.App.SetPopup("LEFT", 6))
 assert(TestUI.MouseTarget(alpha) == alpha, "the popup panel must not intercept collected button input")
 assert(
     TestUI.MouseTarget(beta) == beta and TestUI.MouseTarget(custom) == custom,
@@ -252,13 +276,13 @@ SlashCmdList.COMPACTADDONBUTTONS("settings")
 assert(ns.Window.GetFrame():IsShown())
 local search, header
 for _, frame in ipairs(frames) do
-    if frame.kind == "EditBox" then search = frame end
+    if frame.kind == "EditBox" and frame.hint then search = frame end
     if frame.parent == ns.Window.GetFrame() and frame.scripts.OnDragStop then header = frame end
 end
 search:SetText("no-such-addon")
 search.scripts.OnTextChanged(search)
 for _, frame in ipairs(frames) do
-    if frame.kind == "CheckButton" then assert(not frame:IsShown()) end
+    if frame.kind == "CheckButton" and frame ~= CompactAddonButtonsPopupManual then assert(not frame:IsShown()) end
 end
 ns.App.Toggle(false)
 assert(
@@ -313,6 +337,37 @@ for _, entry in ipairs(ns.Buttons.All()) do
     if entry.collected and entry.button:IsShown() then visible[#visible + 1] = entry end
 end
 ns.App.Toggle(true)
+local manualCheck = CompactAddonButtonsPopupManual
+local anchorDropdown = CompactAddonButtonsPopupAnchor
+assert(manualCheck:IsShown() and not manualCheck:GetChecked() and not anchorDropdown:IsEnabled())
+assert(anchorDropdown:IsShown() and #anchorDropdown.choices == 8)
+assert(anchorDropdown.selectedText == ns.Localization.Text("ANCHOR_LEFT"))
+manualCheck:SetChecked(true)
+manualCheck.scripts.OnClick(manualCheck)
+assert(ns.Settings.GetPopupManual() and anchorDropdown:IsEnabled() and CompactAddonButtonsPopupOffset:IsEnabled())
+local above
+for _, choice in ipairs(anchorDropdown.choices) do
+    if choice.value == "TOP" then above = choice end
+end
+above.choose(above.value)
+assert(ns.Settings.GetPopupAnchor() == "TOP" and anchorDropdown.selectedText == ns.Localization.Text("ANCHOR_TOP"))
+local offsetBox = CompactAddonButtonsPopupOffset
+assert(offsetBox:IsShown() and offsetBox:GetText() == "6")
+offsetBox:SetText("30")
+offsetBox.scripts.OnEnterPressed(offsetBox)
+assert(ns.Settings.GetPopupOffset() == 30 and offsetBox:GetText() == "30" and not offsetBox.focus)
+offsetBox:SetText("nope")
+offsetBox.scripts.OnEnterPressed(offsetBox)
+assert(ns.Settings.GetPopupOffset() == 30 and offsetBox:GetText() == "30")
+ns.App.Toggle(false)
+local abovePoint, _, aboveRelativePoint, aboveX, aboveY = ns.Window.GetFrame():GetPoint()
+assert(
+    abovePoint == "BOTTOM" and aboveRelativePoint == "TOP" and aboveX == 0 and aboveY == 30,
+    "saved side and offset place the open window"
+)
+assert(ns.App.SetPopupManual(false))
+assert(ns.App.SetPopup("LEFT", 6))
+ns.App.Toggle(true)
 local columnsDropdown = CompactAddonButtonsColumns
 assert(columnsDropdown:IsShown() and #columnsDropdown.choices == 12 and columnsDropdown.selectedText == "6")
 assert(popupScroll:IsShown() and not grid:IsShown(), "only settings use the scroll frame")
@@ -339,8 +394,15 @@ for value = 1, 12 do
     end
     ns.App.Toggle(true)
 end
+CompactAddonButtonsDB.popupManual = "yes"
+CompactAddonButtonsDB.popupAnchor = "CENTER"
+CompactAddonButtonsDB.popupOffset = false
 ns.Settings.Initialize()
 assert(ns.Settings.GetColumns() == 12, "columns must survive saved-settings initialization")
+assert(
+    not ns.Settings.GetPopupManual() and ns.Settings.GetPopupAnchor() == "LEFT" and ns.Settings.GetPopupOffset() == 6,
+    "a malformed window placement recovers to automatic placement"
+)
 for _, invalid in ipairs({ false, "4", 0, 13, 1.5, 0 / 0, math.huge }) do
     assert(not ns.App.SetColumns(invalid) and ns.Settings.GetColumns() == 12)
 end
