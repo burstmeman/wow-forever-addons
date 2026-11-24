@@ -1,20 +1,16 @@
-"""Conservative Lua API policy; a review aid, not proof of absence of data leaks."""
+"""Payload and environment checks that Luacheck does not parse.
+
+Luacheck, using .github/ci/luacheckrc, owns syntax and the global allowlist.
+This module owns the remaining review rules: literal `_G` lookups, network
+URLs, encoded string payloads, and inline lint directives.
+"""
 import re
 import subprocess
 import sys
 
 from addons import ROOT, inside, registry
 
-# Minimal APIs needed for UI-only addons. New capabilities require a reviewed policy change.
-READ_GLOBALS = """ipairs pairs type tostring tonumber unpack select print
-math table string CreateFrame UIParent Minimap MinimapBackdrop GameTooltip
-GetLocale GetMinimapShape GetCursorPosition InCombatLockdown LibStub hooksecurefunc
-UISpecialFrames tinsert _G""".split()
-FORBIDDEN = set("""getfenv setfenv getglobal setglobal rawget rawset getmetatable
-setmetatable load loadstring loadfile dofile require module collectgarbage
-io os debug package python ffi socket http https RunScript RunMacro RunMacroText
-SendChatMessage SendAddonMessage BNSendWhisper BNSendGameData BNSendConversationMessage
-RegisterAddonMessagePrefix SendMail C_ChatInfo C_BattleNet C_Club C_HTTP""".split())
+LUACHECKRC = ROOT / ".github/ci/luacheckrc"
 LONG = re.compile(r"\[(=*)\[")
 
 
@@ -64,9 +60,7 @@ def inspect_source(source, global_lookups=()):
     stream = list(tokens(source))
     for index, (kind, value, offset) in enumerate(stream):
         reason = None
-        if kind == "name" and value in FORBIDDEN:
-            reason = f"forbidden capability: {value}"
-        elif kind == "name" and value == "_G":
+        if kind == "name" and value == "_G":
             tail = stream[index + 1:index + 4]
             if len(tail) != 3 or tail[0][1] != "[" or tail[1][0] != "string" or tail[1][1] not in global_lookups or tail[2][1] != "]":
                 reason = "global environment access must use an explicitly allowed literal key"
@@ -77,6 +71,13 @@ def inspect_source(source, global_lookups=()):
     if re.search(r"luacheck\s*:", source, re.I):
         result.append((1, "inline lint overrides are not allowed in runtime code"))
     return result
+
+
+def luacheck_command(files, allowances):
+    """Lint with the shared config so an addon .luacheckrc cannot replace it."""
+    exports = ["SlashCmdList", *allowances.get("globals", [])]
+    return ["luacheck", *map(str, files), "--config", str(LUACHECKRC), "--no-default-config",
+            "--only", "0", "1", "--globals", *exports]
 
 
 def runtime_files(addon):
@@ -107,11 +108,7 @@ def check(addon, lint=True):
     if errors:
         raise ValueError("\n".join(errors))
     if lint:
-        # No config files or inline pragmas from addon code may weaken the allowlist.
-        command = ["luacheck", *map(str, files), "--no-config", "--no-default-config", "--std", "none",
-                   "--only", "0", "1", "--read-globals", *READ_GLOBALS,
-                   "--globals", "SlashCmdList", *allowances.get("globals", [])]
-        subprocess.run(command, check=True)
+        subprocess.run(luacheck_command(files, allowances), check=True)
     print(f"{addon['name']}: Lua API policy passed for {len(files)} runtime files")
 
 
