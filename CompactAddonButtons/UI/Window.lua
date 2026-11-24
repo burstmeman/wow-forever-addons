@@ -11,6 +11,7 @@ local columnsLabel, columnsDropdown
 local settingsMode = false
 local query = ""
 local textLocale, textRevision, menuPreference, menuColumns
+local lastLayout, popupX, popupY, popupScale
 local WIDTH, HEIGHT, CELL = 384, 432, 32
 local PADDING = 3
 
@@ -47,6 +48,14 @@ function Window.CreateSlot()
     slot:SetSize(CELL, CELL)
     slots[#slots + 1] = slot
     return slot
+end
+
+function Window.GridMetrics(count, columnLimit)
+    local columns = math.min(columnLimit, max(1, count))
+    if columns < 1 then columns = 1 end
+    local rows = max(1, math.ceil(count / columns))
+    local width = count == 0 and 210 or columns * CELL + PADDING * 2
+    return columns, rows, width, rows * CELL + PADDING * 2
 end
 
 function Window.PositionPopup()
@@ -87,18 +96,50 @@ local function layout(count)
         empty:SetPoint("TOPLEFT", 24, -208)
         empty:SetWidth(330)
     else
-        local columns = math.min(ns.Settings.GetColumns(), max(1, count))
-        local rowsNeeded = max(1, math.ceil(count / columns))
-        local width = count == 0 and 210 or columns * CELL + PADDING * 2
-        panel:SetSize(width, rowsNeeded * CELL + PADDING * 2)
-        gridContent:SetSize(columns * CELL, rowsNeeded * CELL)
+        local columns, rows, width, height = Window.GridMetrics(count, ns.Settings.GetColumns())
+        panel:SetSize(width, height)
+        gridContent:SetSize(columns * CELL, rows * CELL)
         empty:SetPoint("CENTER", panel, "CENTER", 0, 0)
         empty:SetWidth(width - PADDING * 2)
-        Window.PositionPopup()
     end
     local bar = scroll.ScrollBar or _G["CompactAddonButtonsScrollScrollBar"]
     if bar then bar:SetShown(settingsMode) end
 end
+
+local function writeText(widget, value)
+    if widget:GetText() ~= value then widget:SetText(value) end
+end
+
+local function updateChrome()
+    writeText(modeButton, settingsMode and T("BACK") or T("SETTINGS"))
+    writeText(footer, ns.App.IsPending() and T("COMBAT") or (settingsMode and T("EXCEPTIONS") or T("HINT")))
+end
+
+local function layoutKey(visible, columns)
+    local parts = { settingsMode and "settings" or "grid", tostring(columns), query }
+    for index = 1, #visible do
+        local entry = visible[index]
+        parts[#parts + 1] = entry.key
+        parts[#parts + 1] = entry.label
+        parts[#parts + 1] = entry.button:IsShown() and "1" or "0"
+        parts[#parts + 1] = ns.Settings.IsException(entry.key) and "1" or "0"
+    end
+    return table.concat(parts, "\n")
+end
+
+local function placePopup(force)
+    if settingsMode then return end
+    local launcher = ns.MinimapButton.GetFrame()
+    if not launcher then return end
+    local x, y = launcher:GetCenter()
+    local scale = launcher:GetEffectiveScale()
+    if not x or not y then return end
+    if not force and x == popupX and y == popupY and scale == popupScale then return end
+    popupX, popupY, popupScale = x, y, scale
+    Window.PositionPopup()
+end
+
+function Window.IsShown() return panel ~= nil and panel:IsShown() end
 
 function Window.Refresh(force)
     if not panel or InCombatLockdown() then return end
@@ -113,7 +154,14 @@ function Window.Refresh(force)
             visible[#visible + 1] = entry
         end
     end
-    local columns = math.min(ns.Settings.GetColumns(), max(1, #visible))
+    local columns = Window.GridMetrics(#visible, ns.Settings.GetColumns())
+    local key = layoutKey(visible, columns)
+    if not force and key == lastLayout then
+        updateChrome()
+        placePopup(false)
+        return
+    end
+    lastLayout = key
     layout(#visible)
     local count, activeSlots = 0, {}
     for _, entry in ipairs(visible) do
@@ -145,8 +193,8 @@ function Window.Refresh(force)
     end
     if settingsMode then content:SetHeight(max(1, count * 30)) end
     empty:SetShown(count == 0)
-    modeButton:SetText(settingsMode and T("BACK") or T("SETTINGS"))
-    footer:SetText(ns.App.IsPending() and T("COMBAT") or (settingsMode and T("EXCEPTIONS") or T("HINT")))
+    updateChrome()
+    placePopup(true)
     local range = settingsMode and max(0, content:GetHeight() - scroll:GetHeight()) or 0
     scroll:SetVerticalScroll(math.min(scroll:GetVerticalScroll(), range))
 end

@@ -14,7 +14,11 @@ The application now sorts only when a button is added or renamed. Menu generatio
 is cached until the language, locale registration or column preference changes.
 Closed windows retain updated labels/preferences but defer layout until opening.
 The two-second discovery poll remains active so late-loaded buttons still appear.
-Visible windows continue refreshing button visibility and layout.
+A closed window skips collection and layout when that poll adds or renames nothing
+and combat did not defer an update. Known buttons are not labeled or inspected for
+an icon again. An open window rewrites anchors only when the visible set, labels,
+exceptions, or launcher position change. A collected button that is already
+centered on its slot is left untouched.
 
 One local before/after run of 3,600 polling callbacks, representing two hours of
 timer intervals with the window closed, produced:
@@ -40,7 +44,8 @@ Regression checks use operation counts and retained-memory bounds, not timing.
 
 - 3,600 idle polling callbacks (two hours of simulated timer intervals).
 - 36,000 idle frame callbacks at a simulated 60 Hz.
-- 1,000 scans with the popup visible.
+- 1,000 scans with the popup visible and an unchanged button set.
+- One foreign `SetPoint` on a collected button, then 1,000 reparents onto its current slot.
 - 1,000 cycles opening/closing settings and the popup.
 - 1,000 exception enable/disable cycles.
 - Menu invalidation after preference/translation changes, one-time registration
@@ -48,7 +53,8 @@ Regression checks use operation counts and retained-memory bounds, not timing.
 
 After warm-up, stable-population phases must create no additional frames/hooks,
 rebuild no unchanged menus, perform no redundant sorts, and retain less than 8 KiB
-of extra Lua memory per phase. Closed-window phases must not write text or anchors.
+of extra Lua memory per phase. Closed windows and an unchanged open drawer must
+not write text or anchors.
 The same suite runs against the extracted minified release package in CI.
 
 Slots and settings rows are deliberately pooled up to the largest observed button

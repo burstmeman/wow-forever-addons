@@ -24,10 +24,19 @@ local function canChange(entry)
     return not InCombatLockdown() and not (entry.button.IsProtected and entry.button:IsProtected())
 end
 
+local function placed(button, slot)
+    if button:GetParent() ~= slot or button:GetNumPoints() ~= 1 then return false end
+    local point, relative, relativePoint, x, y = button:GetPoint(1)
+    return point == "CENTER" and relative == slot and relativePoint == "CENTER" and (x or 0) == 0 and (y or 0) == 0
+end
+
 function Collection.Anchor(entry)
     if entry.changing or not entry.collected or not canChange(entry) then return end
-    entry.changing = true
     local button = entry.button
+    -- Hooks run after the other addon has already moved the button. If that
+    -- call left it centered on its slot, there is nothing to write.
+    if placed(button, entry.slot) then return end
+    entry.changing = true
     -- LibDBIcon fixes minimap strata/levels; allow the drawer hierarchy to take over.
     if button.SetFixedFrameStrata then button:SetFixedFrameStrata(false) end
     if button.SetFixedFrameLevel then button:SetFixedFrameLevel(false) end
