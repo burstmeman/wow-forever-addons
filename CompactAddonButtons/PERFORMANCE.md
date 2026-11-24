@@ -1,27 +1,25 @@
 # Memory and CPU review
 
-Reviewed on 2026-11-14 using PUC Lua 5.1 through Lupa 2.8 and the stateful WoW UI
-test double. This is a code/stress-test review, not a live-client profiler result.
+Reviewed on 2026-11-14 with PUC Lua 5.1, Lupa 2.8, and the stateful WoW UI test double. The numbers come from that harness. They are not a profile from the live client.
 
-## Findings and changes
+## What changed
 
-No unbounded retained Lua-memory growth, new frames or duplicate secure hooks
-were observed for a stable set of registered buttons after warming the UI pools.
-The original two-second polling path nevertheless sorted an unchanged list,
-rebuilt both dropdown menus and laid out the window even while it was closed.
+After the UI pools had warmed up, a stable set of registered buttons did not grow Lua memory without bound. It also created no new frames and no duplicate secure hooks.
 
-The application now sorts only when a button is added or renamed. Menu generation
-is cached until the language, locale registration or column preference changes.
-Closed windows retain updated labels/preferences but defer layout until opening.
-The two-second discovery poll remains active so late-loaded buttons still appear.
-A closed window skips collection and layout when that poll adds or renames nothing
-and combat did not defer an update. Known buttons are not labeled or inspected for
-an icon again. An open window rewrites anchors only when the visible set, labels,
-exceptions, or launcher position change. A collected button that is already
-centered on its slot is left untouched.
+The old two-second poll still did extra work while the window was closed. It sorted a list that had not changed, rebuilt both dropdowns, and laid out the window.
 
-One local before/after run of 3,600 polling callbacks, representing two hours of
-timer intervals with the window closed, produced:
+What the code does now:
+
+- It sorts when a button is added or renamed.
+- It rebuilds a menu when the language changes, a locale is registered, or the column setting changes.
+- A closed window still updates labels and settings. It waits to lay itself out until you open it.
+- The two-second scan still runs, so a button that loads late still shows up.
+- If that scan adds nothing and renames nothing, and combat did not postpone an update, a closed window skips collection and layout.
+- A button it already knows is not labeled again, and its icon is not inspected again.
+- An open window moves anchors when the visible set, the labels, the exceptions, or the launcher position change.
+- A collected button that is already centered on its slot is left where it is.
+
+One local run, 3,600 poll callbacks, stands for two hours of timers with the window closed:
 
 | Measurement | Before | After |
 | --- | ---: | ---: |
@@ -34,32 +32,20 @@ timer intervals with the window closed, produced:
 | Retained Lua-memory delta after full GC | 0.375 KiB | 0.375 KiB |
 | Harness CPU time | 0.477 s | 0.071 s |
 
-The constant small memory delta includes measurement-table overhead. Timings are
-from this mock on one host and cannot predict in-game FPS or addon CPU usage.
-Regression checks use operation counts and retained-memory bounds, not timing.
+That small memory delta includes the tables used to measure. The times are from this mock on one machine. They do not say what the frame rate or the addon CPU will be in game. The regression checks count operations and retained memory. They do not compare timings.
 
-## Regression coverage
+## What the tests cover
 
-`tests/run.py` runs all 16 locale/migration scenarios, then `performance_spec.lua`:
+`tests/run.py` runs all 16 locale and migration scenarios, then `performance_spec.lua`:
 
-- 3,600 idle polling callbacks (two hours of simulated timer intervals).
-- 36,000 idle frame callbacks at a simulated 60 Hz.
-- 1,000 scans with the popup visible and an unchanged button set.
-- One foreign `SetPoint` on a collected button, then 1,000 reparents onto its current slot.
-- 1,000 cycles opening/closing settings and the popup.
-- 1,000 exception enable/disable cycles.
-- Menu invalidation after preference/translation changes, one-time registration
-  and sorting of late buttons, and cancellation of the drag updater during combat.
+- 3,600 idle poll callbacks, two hours of simulated timer ticks.
+- 36,000 idle frame callbacks, a simulated 60 Hz.
+- 1,000 scans with the popup open and the same buttons.
+- One outside `SetPoint` on a collected button, then 1,000 moves back onto its current slot.
+- 1,000 cycles that open and close settings and the popup.
+- 1,000 cycles that turn an exception on and off.
+- Menus rebuilt after a setting or translation change, late buttons registered and sorted once, and the drag updater cancelled in combat.
 
-After warm-up, stable-population phases must create no additional frames/hooks,
-rebuild no unchanged menus, perform no redundant sorts, and retain less than 8 KiB
-of extra Lua memory per phase. Closed windows and an unchanged open drawer must
-not write text or anchors.
-The same suite runs against the extracted minified release package in CI.
+After warm-up, a stable set of buttons must create no extra frames or hooks. It must not rebuild a menu that did not change, must not sort a list that did not change, and must keep extra Lua memory under 8 KiB for that phase. A closed window must not write text or anchors. An open drawer whose contents did not change must not write them either. CI runs the same suite on the unpacked, minified release package.
 
-Slots and settings rows are deliberately pooled up to the largest observed button
-count; registered buttons/hooks remain associated with their owner for the session.
-New genuine buttons can therefore increase the high-water memory use. The mock
-does not model native client allocations, Blizzard menu pools, other addons' scripts,
-rendering cost or real frame scheduling. Those require a separate client profile;
-this review did not change game files or enable client profiling.
+Slots and settings rows are pooled up to the most buttons seen in the session. Buttons and hooks stay tied to their owner for that session, so a real new button can raise the peak memory. The mock does not model client allocations, Blizzard menu pools, other addons' scripts, drawing cost, or how the client schedules frames. That needs a profile inside the client. This review did not change game files and did not turn client profiling on.

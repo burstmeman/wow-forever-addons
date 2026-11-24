@@ -82,11 +82,6 @@ def request_files(api, addon, intent):
     manifest_path = addon["path"] + "/" + addon["manifest"]
     original = api.text(manifest_path, intent["base_sha"])
     files = {manifest_path: bumped_manifest(original, intent["previous_version"], intent["version"])}
-    readme_path = addon["path"] + "/README.md"
-    readme = api.text(readme_path, intent["base_sha"], optional=True)
-    old = f"Version **{intent['previous_version']}**"
-    if readme and old in readme:
-        files[readme_path] = readme.replace(old, f"Version **{intent['version']}**")
     files[f"release-requests/{addon['name']}.json"] = json.dumps(intent, indent=2, ensure_ascii=False) + "\n"
     return files
 
