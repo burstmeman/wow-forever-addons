@@ -37,32 +37,63 @@ local function libButtons(register)
     end
 end
 
+local childBuffers, regionBuffer = {}, {}
+
+local function acquire()
+    local buffer = childBuffers[#childBuffers]
+    if buffer then childBuffers[#childBuffers] = nil else buffer = {} end
+    return buffer
+end
+
+local function release(buffer)
+    for index = 1, #buffer do buffer[index] = nil end
+    childBuffers[#childBuffers + 1] = buffer
+end
+
+local function packInto(buffer, ...)
+    local count = select("#", ...)
+    for index = 1, count do buffer[index] = select(index, ...) end
+    for index = count + 1, #buffer do buffer[index] = nil end
+    return count
+end
+
 local function hasIcon(button)
     if button.icon or button.Icon or button:GetNormalTexture() then return true end
-    for _, region in ipairs({ button:GetRegions() }) do
-        if region:IsObjectType("Texture") then return true end
+    local count = packInto(regionBuffer, button:GetRegions())
+    for index = 1, count do
+        local region = regionBuffer[index]
+        if region and region:IsObjectType("Texture") then return true end
     end
     return false
 end
 
+function Discovery.Label(name)
+    local label = name:gsub("^LibDBIcon10_", ""):gsub("[Mm]ini[Mm]ap", "")
+        :gsub("[Bb]utton", ""):gsub("[_%-]+", " ")
+    if label:match("^%s*$") then return name end
+    return label
+end
+
 local function visit(parent, depth, register)
     if not parent or depth > 3 then return end
-    for _, child in ipairs({ parent:GetChildren() }) do
-        if not Discovery.IsExcluded(child) then
+    local buffer = acquire()
+    local count = packInto(buffer, parent:GetChildren())
+    for index = 1, count do
+        local child = buffer[index]
+        if child and not Discovery.IsExcluded(child) then
             local name = child:GetName()
-            if child:IsObjectType("Button") and name then
+            -- Buttons already in the catalog keep their label. Their children can still be new.
+            if child:IsObjectType("Button") and name and not ns.Buttons.Find(child) then
                 local lower = name:lower()
                 if hasIcon(child) and (parent == Minimap or parent == MinimapBackdrop
                     or lower:find("minimap", 1, true) or lower:find("libdbicon", 1, true)) then
-                    local label = name:gsub("^LibDBIcon10_", ""):gsub("[Mm]ini[Mm]ap", "")
-                        :gsub("[Bb]utton", ""):gsub("[_%-]+", " ")
-                    if label:match("^%s*$") then label = name end
-                    register("frame:" .. name, label, child)
+                    register("frame:" .. name, Discovery.Label(name), child)
                 end
             end
             visit(child, depth + 1, register)
         end
     end
+    release(buffer)
 end
 
 function Discovery.Scan(register)

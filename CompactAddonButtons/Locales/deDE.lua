@@ -1,6 +1,7 @@
 local _, ns = ...
 ns.Localization.Register("deDE", "Deutsch", {
     TITLE = "Addon-Schaltflächen",
+    MINIMAP_TITLE = "Kompakte Addon-Schaltflächen",
     SETTINGS = "Ausnahmen",
     BACK = "Zurück",
     EMPTY = "Noch keine Addon-Schaltflächen gefunden.",

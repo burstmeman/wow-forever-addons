@@ -2,7 +2,7 @@ local _, ns = ...
 local App = {}
 ns.App = App
 local ready, initialized, pending = false, false, false
-local orderDirty = false
+local orderDirty, scanChanged = false, false
 
 local function sortButtons()
     if not orderDirty then return end
@@ -13,11 +13,14 @@ end
 local function register(key, label, button)
     local existing = ns.Buttons.Find(button)
     if existing then
+        -- A button found before LibDBIcon loads keeps a frame: key. When the
+        -- library appears, adopt its lib: key and move the saved exception with it.
         if existing.key:find("^frame:") and key:find("^lib:") then
             local oldKey = existing.key
             if ns.Buttons.Rename(existing, key, label) then
                 ns.Settings.RenameException(oldKey, key)
                 orderDirty = true
+                return true
             end
         end
         return false
@@ -53,12 +56,21 @@ function App.Apply()
     ns.Window.Refresh()
 end
 
+local function noteDiscovered(key, label, button)
+    if register(key, label, button) then scanChanged = true end
+end
+
 function App.Scan()
     if not ready then return end
     if InCombatLockdown() then pending = true; return end
-    ns.Discovery.Scan(register)
+    scanChanged = false
+    ns.Discovery.Scan(noteDiscovered)
     sortButtons()
-    App.Apply()
+    -- Opening the window refreshes it. A closed window only needs Collect when
+    -- discovery changed the catalog or combat deferred a parent change. Text
+    -- still follows language changes while the window is hidden.
+    if scanChanged or pending or ns.Window.IsShown() then App.Apply()
+    else ns.Window.Refresh() end
 end
 
 function App.Start()
