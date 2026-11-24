@@ -179,7 +179,8 @@ assert(alpha:GetParent() == slot, "external positioning must not leak a collecte
 
 -- Settings mode contains every discovered entry, including exceptions and addon-hidden buttons.
 ns.App.Toggle(true)
-assert(ns.Window.GetFrame():IsShown() and not slot:IsShown())
+assert(ns.Window.GetFrame():IsShown() and slot:IsShown() and ns.Window.GetPopupFrame():IsVisible())
+assert(TestUI.MouseTarget(alpha) == alpha, "preview backdrop must not intercept button clicks")
 assert(
     ns.Window.GetFrame():GetWidth() == 384 and ns.Window.GetFrame():GetHeight() == 432,
     "settings keep a readable layout"
@@ -281,6 +282,10 @@ for _, frame in ipairs(frames) do
 end
 search:SetText("no-such-addon")
 search.scripts.OnTextChanged(search)
+assert(
+    ns.Window.GetPopupFrame():IsVisible() and ns.Buttons.Find(beta).slot:IsShown(),
+    "search does not filter the live preview"
+)
 for _, frame in ipairs(frames) do
     if frame.kind == "CheckButton" and frame ~= CompactAddonButtonsPopupManual then assert(not frame:IsShown()) end
 end
@@ -359,6 +364,16 @@ assert(ns.Settings.GetPopupOffset() == 30 and offsetBox:GetText() == "30" and no
 offsetBox:SetText("nope")
 offsetBox.scripts.OnEnterPressed(offsetBox)
 assert(ns.Settings.GetPopupOffset() == 30 and offsetBox:GetText() == "30")
+local livePopup = ns.Window.GetPopupFrame()
+assert(livePopup ~= ns.Window.GetFrame() and livePopup:IsVisible())
+local livePoint, liveLauncher, liveRelative, liveX, liveY = livePopup:GetPoint()
+assert(livePoint == "BOTTOM" and liveLauncher == ns.MinimapButton.GetFrame())
+assert(liveRelative == "TOP" and liveX == 0 and liveY == 30, "placement changes update the live preview")
+assert(select(2, ns.Window.GetFrame():GetPoint()) == UIParent, "preview placement must not move settings")
+ns.Window.Close()
+assert(not livePopup:IsShown() and not ns.Window.GetFrame():IsShown(), "closing settings closes the preview")
+ns.App.Toggle(true)
+assert(ns.Window.GetPopupFrame() == livePopup and livePopup:IsVisible(), "reopening reuses the preview")
 ns.App.Toggle(false)
 local abovePoint, _, aboveRelativePoint, aboveX, aboveY = ns.Window.GetFrame():GetPoint()
 assert(
@@ -370,7 +385,8 @@ assert(ns.App.SetPopup("LEFT", 6))
 ns.App.Toggle(true)
 local columnsDropdown = CompactAddonButtonsColumns
 assert(columnsDropdown:IsShown() and #columnsDropdown.choices == 12 and columnsDropdown.selectedText == "6")
-assert(popupScroll:IsShown() and not grid:IsShown(), "only settings use the scroll frame")
+assert(popupScroll:IsShown() and grid:IsVisible(), "settings show the list alongside the live icon preview")
+assert(grid:GetParent() == ns.Window.GetPopupFrame())
 popupScroll:SetVerticalScroll(75)
 for value = 1, 12 do
     local choice = columnsDropdown.choices[value]
@@ -378,6 +394,10 @@ for value = 1, 12 do
     choice.choose(choice.value)
     assert(ns.Settings.GetColumns() == value and CompactAddonButtonsDB.columns == value)
     assert(columnsDropdown.selectedText == tostring(value))
+    local liveRows = math.ceil(#visible / value)
+    assert(ns.Window.GetPopupFrame():GetWidth() == value * 32 + 6)
+    assert(ns.Window.GetPopupFrame():GetHeight() == liveRows * 32 + 6)
+    assert(ns.Window.GetFrame():GetWidth() == 384, "live preview must not resize configuration")
     ns.App.Toggle(false)
     assert(not columnsDropdown:IsShown(), "grid controls belong only in settings")
     local rowCount = math.ceil(#visible / value)
@@ -412,6 +432,7 @@ fire("PLAYER_REGEN_DISABLED")
 columnsDropdown.choices[2].choose(2)
 assert(ns.Settings.GetColumns() == 2 and ns.App.IsPending())
 assert(not ns.Window.GetFrame():IsShown())
+assert(not livePopup:IsVisible(), "combat closes settings and their live preview")
 TestUI.SetCombat(false)
 fire("PLAYER_REGEN_ENABLED")
 assert(not ns.App.IsPending() and columnsDropdown.selectedText == "2")

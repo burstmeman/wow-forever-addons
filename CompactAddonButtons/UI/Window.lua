@@ -6,6 +6,7 @@ local text, skin, smallButton = ns.Widgets.Text, ns.Widgets.Skin, ns.Widgets.But
 local floor, max = math.floor, math.max
 local rows, slots = {}, {}
 local panel, content, gridContent, scroll, empty, footer, search, modeButton
+local preview, previewEmpty
 local header, close, scan, title, languageLabel, languageDropdown
 local columnsLabel, columnsDropdown
 local manualCheck, manualLabel, anchorLabel, anchorDropdown, offsetLabel, offsetBox
@@ -79,7 +80,8 @@ end
 
 function Window.PositionPopup()
     local launcher = ns.MinimapButton.GetFrame()
-    if not panel or not launcher or settingsMode then return false end
+    if not panel or not launcher then return false end
+    local target = settingsMode and preview or panel
     local point, relative, x, y
     if ns.Settings.GetPopupManual() then
         point, relative, x, y = Window.PopupPoint(ns.Settings.GetPopupAnchor(), ns.Settings.GetPopupOffset())
@@ -93,12 +95,12 @@ function Window.PositionPopup()
         relative = (top and "TOP" or "BOTTOM") .. (right and "LEFT" or "RIGHT")
         x, y = right and -6 or 6, 0
     end
-    panel:ClearAllPoints()
-    panel:SetPoint(point, launcher, relative, x, y)
+    target:ClearAllPoints()
+    target:SetPoint(point, launcher, relative, x, y)
     return true
 end
 
-local function layout(count)
+local function layout(gridCount)
     panel:SetBackdropColor(0.055, 0.05, 0.045, settingsMode and 0.97 or 0.88)
     header:SetShown(settingsMode)
     close:SetShown(settingsMode)
@@ -117,7 +119,26 @@ local function layout(count)
     offsetLabel:SetShown(settingsMode)
     offsetBox:SetShown(settingsMode)
     scroll:SetShown(settingsMode)
-    gridContent:SetShown(not settingsMode)
+    local target = settingsMode and preview or panel
+    if gridContent:GetParent() ~= target then
+        gridContent:SetParent(target)
+        gridContent:ClearAllPoints()
+        gridContent:SetPoint("TOPLEFT", target, "TOPLEFT", PADDING, -PADDING)
+        gridContent:SetFrameLevel(target:GetFrameLevel() + 1)
+        for _, slot in ipairs(slots) do
+            slot:SetFrameLevel(gridContent:GetFrameLevel() + 1)
+        end
+        for _, entry in ipairs(ns.Buttons.All()) do
+            if entry.collected then ns.Collection.Anchor(entry) end
+        end
+    end
+    gridContent:Show()
+    preview:SetShown(settingsMode)
+    local columns, rows, width, height = Window.GridMetrics(gridCount, ns.Settings.GetColumns())
+    target:SetSize(width, height)
+    gridContent:SetSize(columns * CELL, rows * CELL)
+    previewEmpty:SetShown(settingsMode and gridCount == 0)
+    previewEmpty:SetWidth(width - PADDING * 2)
     scroll:ClearAllPoints()
     empty:ClearAllPoints()
     if settingsMode then
@@ -128,9 +149,6 @@ local function layout(count)
         empty:SetPoint("TOPLEFT", 24, -278)
         empty:SetWidth(330)
     else
-        local columns, rows, width, height = Window.GridMetrics(count, ns.Settings.GetColumns())
-        panel:SetSize(width, height)
-        gridContent:SetSize(columns * CELL, rows * CELL)
         empty:SetPoint("CENTER", panel, "CENTER", 0, 0)
         empty:SetWidth(width - PADDING * 2)
     end
@@ -147,7 +165,7 @@ local function updateChrome()
     writeText(footer, ns.App.IsPending() and T("COMBAT") or (settingsMode and T("EXCEPTIONS") or T("HINT")))
 end
 
-local function layoutKey(visible, columns)
+local function layoutKey(visible, grid, columns)
     local parts = { settingsMode and "settings" or "grid", tostring(columns), query }
     for index = 1, #visible do
         local entry = visible[index]
@@ -156,11 +174,14 @@ local function layoutKey(visible, columns)
         parts[#parts + 1] = entry.button:IsShown() and "1" or "0"
         parts[#parts + 1] = ns.Settings.IsException(entry.key) and "1" or "0"
     end
+    parts[#parts + 1] = "grid"
+    for _, entry in ipairs(grid) do
+        parts[#parts + 1] = entry.key
+    end
     return table.concat(parts, "\n")
 end
 
 local function placePopup(force)
-    if settingsMode then return end
     local launcher = ns.MinimapButton.GetFrame()
     local manual = ns.Settings.GetPopupManual()
     local anchor, offset = ns.Settings.GetPopupAnchor(), ns.Settings.GetPopupOffset()
@@ -185,29 +206,31 @@ local function placePopup(force)
 end
 
 function Window.IsShown() return panel ~= nil and panel:IsShown() end
+function Window.GetPopupFrame() return settingsMode and preview or panel end
 
 function Window.Refresh(force)
     if not panel or InCombatLockdown() then return end
     Window.RefreshTexts()
     -- Keep labels current, but defer hidden layout work until the next opening.
     if not force and not panel:IsShown() then return end
-    local visible = {}
+    local visible, grid = {}, {}
     for _, entry in ipairs(ns.Buttons.All()) do
+        if entry.collected and entry.button:IsShown() then grid[#grid + 1] = entry end
         if settingsMode then
             if ns.Buttons.Matches(entry, query) then visible[#visible + 1] = entry end
         elseif entry.collected and entry.button:IsShown() then
             visible[#visible + 1] = entry
         end
     end
-    local columns = Window.GridMetrics(#visible, ns.Settings.GetColumns())
-    local key = layoutKey(visible, columns)
+    local columns = Window.GridMetrics(#grid, ns.Settings.GetColumns())
+    local key = layoutKey(visible, grid, columns)
     if not force and key == lastLayout then
         updateChrome()
         placePopup(false)
         return
     end
     lastLayout = key
-    layout(#visible)
+    layout(#grid)
     local count, activeSlots = 0, {}
     for _, entry in ipairs(visible) do
         if settingsMode then
@@ -220,14 +243,15 @@ function Window.Refresh(force)
             row.label:SetTextColor(1, entry.button:IsShown() and 0.95 or 0.6, entry.button:IsShown() and 0.85 or 0.6)
             row:SetChecked(ns.Settings.IsException(entry.key))
             row:Show()
-        else
-            local slot = entry.slot
-            slot:ClearAllPoints()
-            slot:SetPoint("TOPLEFT", (count % columns) * CELL, -floor(count / columns) * CELL)
-            activeSlots[slot] = true
-            count = count + 1
         end
     end
+    for index, entry in ipairs(grid) do
+        local slot = entry.slot
+        slot:ClearAllPoints()
+        slot:SetPoint("TOPLEFT", ((index - 1) % columns) * CELL, -floor((index - 1) / columns) * CELL)
+        activeSlots[slot] = true
+    end
+    if not settingsMode then count = #grid end
     -- Do not hide and re-show every button on each scan: addon OnShow/OnHide scripts
     -- may have side effects, even though the visible layout has not changed.
     for _, slot in ipairs(slots) do
@@ -281,6 +305,20 @@ function Window.Create()
     local point, relative, x, y = ns.Settings.GetPosition()
     panel:SetPoint(point, UIParent, relative, x, y)
     tinsert(UISpecialFrames, "CompactAddonButtonsWindow")
+
+    -- Reuse the real icon grid while the owner remains the settings window.
+    -- Parenting the preview to it also closes both windows through Escape.
+    preview = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+    preview:SetFrameStrata(panel:GetFrameStrata())
+    preview:SetFrameLevel(panel:GetFrameLevel() + 1)
+    preview:SetClampedToScreen(true)
+    preview:EnableMouse(true)
+    skin(preview)
+    preview:SetBackdropColor(0.055, 0.05, 0.045, 0.88)
+    preview:Hide()
+    previewEmpty = text(preview, "GameFontDisable", T("EMPTY"), 0, 0)
+    previewEmpty:ClearAllPoints()
+    previewEmpty:SetPoint("CENTER", preview, "CENTER", 0, 0)
 
     header = CreateFrame("Frame", nil, panel)
     header:SetPoint("TOPLEFT", 0, 0)
@@ -397,6 +435,7 @@ function Window.Create()
     end)
     search.hint = text(search, "GameFontDisableSmall", T("SEARCH"), 0, -5)
     panel:SetScript("OnHide", function()
+        preview:Hide()
         search:ClearFocus()
         GameTooltip:Hide()
     end)
@@ -433,6 +472,7 @@ function Window.RefreshTexts()
     if changed then
         title:SetText(T("TITLE"))
         empty:SetText(T("EMPTY"))
+        previewEmpty:SetText(T("EMPTY"))
         search.hint:SetText(T("SEARCH"))
         scan:SetText(T("SCAN"))
         languageLabel:SetText(T("LANGUAGE"))

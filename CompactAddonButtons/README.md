@@ -34,6 +34,8 @@ The popup sits next to the launcher. It opens toward the middle of the screen an
 
 Search and the exception list are in the larger settings window. Right-click opens it. Its position is saved on its own. Only that list scrolls.
 
+Opening settings also shows a live preview of the icon grid beside the minimap launcher. Changes to columns, exceptions, placement and offset immediately update the preview. Searching filters only the exceptions list. Closing settings or entering combat hides the preview too.
+
 Settings, language, exceptions, the settings window, and the minimap button position are saved per account. The window uses the game fonts and the game's own controls, with a dark background and a thin muted gold border.
 
 The minimap button uses `Media/MinimapIcon.tga`: four gold-framed buttons in a 2 x 2 grid, drawn simply so it stays readable at launcher size. The file is an uncompressed 64 x 64, 32-bit RGBA texture, so the corners and the gaps stay transparent (16,428 bytes). The addon list uses `Media/Icon.tga`, the original uncompressed 64 x 64, 24-bit RGB picture (12,332 bytes). `icon.png` and `minimap-icon.png` are 128 x 128 pictures for this page. The game does not load them.
