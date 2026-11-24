@@ -76,6 +76,8 @@ results[#results + 1] = phase("idle-two-hours", 3600, function() events.scripts.
 results[#results + 1] = phase("idle-high-fps", 36000, function() events.scripts.OnUpdate(events, 1 / 60) end)
 ns.App.Toggle(false)
 results[#results + 1] = phase("visible-scans", 1000, function() ns.App.Scan() end)
+ns.App.Toggle(true)
+results[#results + 1] = phase("settings-preview-scans", 1000, function() ns.App.Scan() end)
 ns.Window.Close()
 results[#results + 1] = phase("open-close", 1000, function()
     ns.App.Toggle(true)
@@ -93,7 +95,7 @@ for _, result in ipairs(results) do
     assert(result.retainedKiB < 8, "retained Lua memory must plateau after warm-up")
     assert(result.menus == 0 and result.choices == 0, "unchanged settings must not regenerate menus")
     assert(result.sorts == 0, "unchanged button lists must not be re-sorted")
-    if result.name:find("^idle") or result.name == "visible-scans" then
+    if result.name:find("^idle") or result.name == "visible-scans" or result.name == "settings-preview-scans" then
         assert(
             result.pointWrites == 0 and result.textWrites == 0,
             "unchanged windows must not be laid out or repainted"
@@ -109,7 +111,7 @@ ns.App.SetColumns(6)
 builds = stats.menus
 local label = ns.Localization.Text("SCAN")
 assert(ns.Localization.Register("enUS", "English", { SCAN = "Updated scan label" }))
-assert(stats.menus == builds + 2, "translation registration must invalidate labels and both menus")
+assert(stats.menus == builds + 3, "translation registration must invalidate labels and every menu")
 ns.Localization.Register("enUS", "English", { SCAN = label })
 
 -- Discovery remains active, while each genuinely new entry is hooked/sorted once.

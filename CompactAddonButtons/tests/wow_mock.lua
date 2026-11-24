@@ -100,6 +100,8 @@ function methods:SetText(value)
 end
 function methods:GetText() return self.value or "" end
 function methods:SetChecked(value) self.checked = value end
+function methods:SetEnabled(enabled) self.enabled = enabled and true or false end
+function methods:IsEnabled() return self.enabled ~= false end
 function methods:GetChecked() return self.checked end
 function methods:ClearFocus() self.focus = false end
 function methods:SetVerticalScroll(value) self.scroll = value end

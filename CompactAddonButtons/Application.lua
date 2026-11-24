@@ -123,6 +123,18 @@ function App.SetColumns(value)
     return true
 end
 
+function App.SetPopupManual(enabled)
+    if not ns.Settings.SetPopupManual(enabled) then return false end
+    if ready then App.Apply() end
+    return true
+end
+
+function App.SetPopup(anchor, offset)
+    if not ns.Settings.SetPopup(anchor, offset) then return false end
+    if ready then App.Apply() end
+    return true
+end
+
 function App.RegisterButton(key, label, button)
     local buttonType = type(button)
     if

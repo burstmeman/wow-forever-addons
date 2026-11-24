@@ -2,7 +2,22 @@ local _, ns = ...
 local Settings = {}
 ns.Settings = Settings
 Settings.MIN_COLUMNS, Settings.MAX_COLUMNS = 1, 12
+Settings.MIN_POPUP_OFFSET, Settings.MAX_POPUP_OFFSET = 0, 200
+Settings.POPUP_ANCHORS = {
+    "LEFT",
+    "RIGHT",
+    "TOP",
+    "BOTTOM",
+    "TOPLEFT",
+    "TOPRIGHT",
+    "BOTTOMLEFT",
+    "BOTTOMRIGHT",
+}
 local db
+local popupAnchors = {}
+for _, name in ipairs(Settings.POPUP_ANCHORS) do
+    popupAnchors[name] = true
+end
 local anchors = {
     CENTER = true,
     TOP = true,
@@ -32,6 +47,13 @@ local function validColumns(value)
         and value <= Settings.MAX_COLUMNS
 end
 
+local function validOffset(value)
+    return finite(value)
+        and value == math.floor(value)
+        and value >= Settings.MIN_POPUP_OFFSET
+        and value <= Settings.MAX_POPUP_OFFSET
+end
+
 function Settings.Initialize()
     if type(CompactAddonButtonsDB) ~= "table" and type(BetterAddonButtonsDB) == "table" then
         CompactAddonButtonsDB = BetterAddonButtonsDB
@@ -44,6 +66,10 @@ function Settings.Initialize()
     if not validPosition(db.position) then db.position = { "CENTER", "CENTER", 0, 0 } end
     if type(db.language) ~= "string" then db.language = "auto" end
     if not validColumns(db.columns) then db.columns = 6 end
+    -- Automatic placement follows the launcher. Manual side and offset apply only when enabled.
+    if db.popupManual ~= true then db.popupManual = false end
+    if not popupAnchors[db.popupAnchor] then db.popupAnchor = "LEFT" end
+    if not validOffset(db.popupOffset) then db.popupOffset = 6 end
     db.version = 2
 end
 
@@ -68,5 +94,20 @@ function Settings.GetColumns() return db.columns end
 function Settings.SetColumns(value)
     if not validColumns(value) then return false end
     db.columns = value
+    return true
+end
+function Settings.GetPopupManual() return db.popupManual == true end
+function Settings.SetPopupManual(enabled)
+    db.popupManual = enabled and true or false
+    return true
+end
+function Settings.GetPopupAnchor() return db.popupAnchor end
+function Settings.GetPopupOffset() return db.popupOffset end
+function Settings.SetPopup(anchor, offset)
+    if anchor ~= nil and not popupAnchors[anchor] then return false end
+    if offset ~= nil and not validOffset(offset) then return false end
+    if anchor == nil and offset == nil then return false end
+    if anchor ~= nil then db.popupAnchor = anchor end
+    if offset ~= nil then db.popupOffset = offset end
     return true
 end

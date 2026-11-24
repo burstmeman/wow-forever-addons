@@ -29,7 +29,7 @@ assert(dropdown.selectedText == "Deutsch")
 
 local search
 for _, frame in ipairs(TestUI.frames) do
-    if frame.kind == "EditBox" then search = frame end
+    if frame.kind == "EditBox" and frame.hint then search = frame end
 end
 assert(search.hint:GetText() == "Schaltfläche suchen...")
 for _, language in ipairs(L.GetLanguages()) do
