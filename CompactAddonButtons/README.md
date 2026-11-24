@@ -2,15 +2,15 @@
 
 ![Compact Addon Buttons icon](icon.png)
 
-A standalone minimap button drawer for **World of Warcraft: Forever**, Interface **16001**. No required libraries or other addons.
+A minimap button drawer for World of Warcraft: Forever, Interface 16001. It has no required libraries and no required addons.
 
 Version **1.2.11**.
 
 ## Installation
 
-Copy the entire `CompactAddonButtons` directory into the Forever client's `Interface/AddOns/` directory. The manifest must be at `Interface/AddOns/CompactAddonButtons/CompactAddonButtons.toc`, without an additional nested directory. Restart the client or reload the UI and enable **Compact Addon Buttons** in the addon list.
+Copy the entire `CompactAddonButtons` directory into the Forever client's `Interface/AddOns/` directory. The manifest must be at `Interface/AddOns/CompactAddonButtons/CompactAddonButtons.toc`, with no extra directory wrapped around it. Restart the client or reload the UI, then enable Compact Addon Buttons in the addon list.
 
-The `tests` directory and this README are development files and may be omitted when installing.
+The `tests` directory and this README are development files. You can leave them out of an install.
 
 ## Controls
 
@@ -22,7 +22,7 @@ The `tests` directory and this README are development files and may be omitted w
 | Drag the settings header | Move the settings window |
 | Check a button in Exceptions | Keep that button on the minimap |
 | Language dropdown in settings | Choose automatic detection or a specific interface language |
-| Buttons per row dropdown in settings | Choose 1–12 columns (default: 6); saved per account |
+| Buttons per row dropdown in settings | Choose 1 to 12 columns (default: 6); saved per account |
 | Search in settings | Filter the exceptions list by button name |
 | Refresh in settings | Immediately discover newly created buttons |
 | Escape or left-click the addon button again | Close the popup |
@@ -30,17 +30,17 @@ The `tests` directory and this README are development files and may be omitted w
 | `/cab settings` | Toggle the exceptions list |
 | `/cab refresh` | Rescan buttons |
 
-The popup contains only addon icons in a tight grid with a lightly translucent background and fits its size to the number of visible buttons: a configurable 1–12 columns (six by default) and as many rows as needed. The icon grid has no scrolling or scrollbar. Right-click the launcher and choose **Buttons per row** to change the grid without reloading. It anchors directly beside the launcher, opens toward the screen interior, and stays clamped to the screen. Original button tooltips provide names and help. Search and exception controls appear in the larger settings view opened with right-click; its position is saved independently. Only the settings list scrolls.
+The popup shows addon icons in a tight grid on a lightly translucent background. Its size follows the visible buttons: 1 to 12 columns, six by default, and as many rows as the buttons need. The icon grid does not scroll. Right-click the launcher and choose Buttons per row to change the grid without reloading. The popup sits beside the launcher, opens toward the interior of the screen, and is kept inside the screen edges. Names and help come from the original button tooltips. Search and exception controls are in the larger settings view, opened with a right-click. That window's position is saved on its own. Only the settings list scrolls.
 
-Settings, language preference, exceptions, and settings-window/minimap positions are saved per account. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
+Settings, the language preference, exceptions, and the settings-window and minimap positions are saved per account. The window uses game fonts, native controls, a dark background, and a thin muted gold border.
 
-The minimap launcher uses `Media/MinimapIcon.tga`: four gold-framed buttons in a compact 2 x 2 grid, simplified for the small launcher. The uncompressed 64 x 64, 32-bit RGBA texture preserves transparent corners and gaps (16,428 bytes). The in-game addon list uses `Media/Icon.tga`, the original uncompressed 64 x 64, 24-bit RGB artwork (12,332 bytes). `icon.png` and `minimap-icon.png` are 128 x 128 documentation previews; the game does not load them.
+The minimap launcher uses `Media/MinimapIcon.tga`: four gold-framed buttons in a compact 2 x 2 grid, drawn simply so the small launcher stays readable. The uncompressed 64 x 64, 32-bit RGBA texture keeps the transparent corners and gaps (16,428 bytes). The in-game addon list uses `Media/Icon.tga`, the original uncompressed 64 x 64, 24-bit RGB artwork (12,332 bytes). `icon.png` and `minimap-icon.png` are 128 x 128 documentation previews. The game does not load them.
 
 ![Minimap launcher icon](minimap-icon.png)
 
 ## Languages
 
-English is the default and fallback language. On first use, the language preference is **Automatic (client language)**. The bundled translations are:
+English is the default and the fallback. On first use, the language preference is Automatic (client language). The bundled translations are:
 
 | Language | Client locales |
 | --- | --- |
@@ -50,9 +50,9 @@ English is the default and fallback language. On first use, the language prefere
 | German | `deDE` |
 | French | `frFR` |
 
-Right-click the minimap button, then use **Language** to override automatic detection. A manual choice is saved per account and updates the existing interface without reloading. Unsupported client languages use English. Missing translation keys also fall back to English individually.
+Right-click the minimap button, then use Language to override automatic detection. A manual choice is saved per account and updates the open interface without a reload. An unsupported client language uses English. A missing translation key falls back to English on its own.
 
-Each language is a UTF-8 Lua file under `Locales/`. To bundle another language, register its strings in a new file and add that file to the manifest after `Locales/enUS.lua`. The rest of the addon requires no changes:
+Each language is a UTF-8 Lua file under `Locales/`. To bundle another language, register its strings in a new file and add that file to the manifest after `Locales/enUS.lua`. The rest of the addon stays as it is:
 
 ```lua
 local _, ns = ...
@@ -64,13 +64,13 @@ ns.Localization.Register("itIT", "Italiano", {
 })
 ```
 
-External translation addons can use `CompactAddonButtons.RegisterLocale(locale, displayName, strings, aliases)` after this addon loads. Registering more strings for an existing locale merges them without duplicating the language menu entry. An optional aliases array maps additional client locales to the translation. Strings and language metadata are copied on registration. Translations must be strings; invalid registrations return `false` without changing the registry. Registration also refreshes the current interface, so late-loaded translations work.
+Another addon can call `CompactAddonButtons.RegisterLocale(locale, displayName, strings, aliases)` after this addon loads. Registering more strings for a locale that already exists merges them and does not add a second language menu entry. An optional aliases array maps extra client locales onto the translation. Strings and language metadata are copied on registration. Translations must be strings. An invalid registration returns `false` and leaves the registry unchanged. Registration also refreshes the current interface, so a translation pack that loads late still applies.
 
-`CompactAddonButtons.SetLanguage("frFR")` selects a registered language; `SetLanguage("auto")` restores client detection. `GetLanguage()` returns the effective canonical locale. Unsupported manual selections return `false` without changing the saved preference.
+`CompactAddonButtons.SetLanguage("frFR")` selects a registered language. `SetLanguage("auto")` restores client detection. `GetLanguage()` returns the effective canonical locale. An unsupported manual selection returns `false` and leaves the saved preference unchanged.
 
 ## Code organization
 
-Modules are plain Lua tables with explicit responsibilities; there is no framework or class hierarchy.
+Modules are plain Lua tables. Each one has a stated job. There is no framework and no class hierarchy.
 
 | Module | Responsibility |
 | --- | --- |
@@ -87,17 +87,17 @@ Modules are plain Lua tables with explicit responsibilities; there is no framewo
 
 ## How collection works
 
-The drawer reparents the original button into a grid cell and places it above the popup panel so the panel cannot intercept its mouse input. Left-click, right-click, hover tooltips, and other original button scripts continue to belong to the source addon. Drag scripts are temporarily disabled inside the drawer and restored when a button becomes an exception. Original parent, frame strata, frame level, and all anchor points are restored too, so excluded buttons regain their minimap stacking order immediately. Buttons are not resized, and buttons hidden by their source addon are never forcibly shown.
+The drawer reparents the original button into a grid cell and places it above the popup panel, so the panel cannot take the click. Left-click, right-click, hover tooltips, and the button's other original scripts still belong to the source addon. Drag scripts are turned off while the button is in the drawer and restored when the button becomes an exception. The original parent, frame strata, frame level, and every anchor point are restored too, so an excluded button gets its minimap stacking order back immediately. Buttons are not resized. A button hidden by its source addon is not forced on screen.
 
-Discovery uses an already loaded `LibDBIcon-1.0` when available, then searches the minimap and minimap backdrop for named addon icon buttons, including nested minimap buttons. A two-second scan catches delayed creation and load-on-demand addons. Names from LibDBIcon are used as stable exception identities. An exception discovered before LibDBIcon loads is migrated to its library identity when possible.
+Discovery uses an already loaded `LibDBIcon-1.0` when that library is present, then searches the minimap and the minimap backdrop for named addon icon buttons, including nested minimap buttons. A scan every two seconds picks up delayed creation and load-on-demand addons. Names from LibDBIcon are the stable exception identities. An exception found before LibDBIcon loads is moved to its library identity when that is possible.
 
-Game controls such as tracking, mail, zoom, queue status, the clock, and the world map are excluded. Protected buttons are excluded. Anonymous or unusually placed custom buttons may require explicit registration by their addon; arbitrary UI frames cannot reliably be distinguished from game controls. Other minimap button collectors should be disabled to avoid competing over button parents and anchors.
+Game controls stay out, including tracking, mail, zoom, queue status, the clock, and the world map. Protected buttons stay out. An anonymous button, or a custom button in an unusual place, may need its addon to register it. An arbitrary UI frame cannot be told apart from a game control with any confidence. Turn off other minimap button collectors so they do not fight this one over parents and anchors.
 
-The drawer closes on entering combat. Opening it and changing button parents/anchors are deferred until combat ends. The launcher stays available on the minimap; attempting to open it during combat prints a short explanation.
+The drawer closes when combat starts. Opening it, and changing button parents or anchors, waits until combat ends. The launcher stays on the minimap. Trying to open the drawer during combat prints a short explanation.
 
 ## Optional registration API
 
-An addon with an unusual minimap button can register it explicitly after Compact Addon Buttons has loaded:
+An addon with an unusual minimap button can register it after Compact Addon Buttons has loaded:
 
 ```lua
 if CompactAddonButtons then
@@ -105,28 +105,28 @@ if CompactAddonButtons then
 end
 ```
 
-The key should be stable and unique. Registration supports pre-login calls, ignores duplicate button objects, and rejects protected buttons. There is no dependency on LibDataBroker or LibDBIcon.
+The key should be stable and unique. Registration accepts a call made before login, ignores a duplicate button object, and rejects a protected button. LibDataBroker and LibDBIcon are not required.
 
 ## Verification
 
-From the repository root, using Python 3.12:
+From the repository root, with Python 3.12:
 
 ```powershell
 python -m pip install -r CompactAddonButtons/tests/requirements.txt
 python CompactAddonButtons/tests/run.py
 ```
 
-The runner also supports the existing repository-local `.tools/lua-test-runtime` installation. It executes the actual manifest in Lua 5.1 with a stateful UI double. Sixteen scenarios cover all five bundled languages, English/Spanish locale aliases, an unsupported client language, and fresh/migrated settings.
+The runner also accepts the repository-local `.tools/lua-test-runtime` installation. It loads the addon manifest in Lua 5.1 against a stateful UI double. Sixteen scenarios cover all five bundled languages, the English and Spanish locale aliases, an unsupported client language, and both fresh and migrated settings.
 
-Coverage includes startup and invalid saved settings, LibDBIcon/custom discovery, exclusion of native/protected controls, hidden buttons, original click/hover behavior, repositioning, exception restoration with multiple anchors and drag scripts, identity migration, periodic scans, search, slash commands, saved positions, square minimaps, popup bounds, and combat deferral. Localization checks cover actual dropdown callbacks, immediate text updates, per-key fallback, complete bundled dictionaries, manual choice persistence, invalid registrations, metadata isolation, late translation packs, and language changes during combat.
+The suite covers startup and invalid saved settings, LibDBIcon and custom discovery, exclusion of native and protected controls, hidden buttons, original click and hover behavior, repositioning, exception restoration with several anchors and drag scripts, identity migration, periodic scans, search, slash commands, saved positions, square minimaps, popup bounds, and combat deferral. Localization checks cover the dropdown callbacks, immediate text updates, per-key fallback, complete bundled dictionaries, persistence of a manual choice, invalid registrations, metadata isolation, late translation packs, and a language change during combat.
 
-These tests do not replace a live Forever client check. Visual layout, real third-party callbacks, and client taint/protection behavior have not been verified in game for this addon. Before release:
+Run a live Forever client check as well. The harness has not verified visual layout, real third-party callbacks, or client taint and protection. Before a release:
 
 1. Confirm `/dump select(4, GetBuildInfo())` reports `16001`.
-2. Enable several installed addons with minimap buttons; verify only the addon button and chosen exceptions remain on the minimap.
-3. Open the drawer and test each collected button's left/right clicks and tooltips.
-4. Toggle exceptions, move the settings window/launcher, reload, and check persistence. Check that the icon popup still opens beside the launcher rather than at the saved settings position.
-5. Test a source addon's own show/hide setting and a load-on-demand button.
-6. Enter and leave combat with the drawer open; check for Lua errors, blocked actions, and taint.
-7. Check that the icon grid expands without scrolling with more than 36 buttons and different column counts. Check settings-list scrolling, an empty popup, Russian text, custom minimap shapes, launchers near each screen edge, and the client's UI scale.
-8. Select each language in the native dropdown, check translated labels/tooltips for clipping, reload, and verify that the choice persists. Switch back to automatic detection.
+2. Enable several installed addons with minimap buttons. Only this addon's button, plus the exceptions you chose, should remain on the minimap.
+3. Open the drawer and test each collected button's left-click, right-click, and tooltip.
+4. Toggle exceptions, move the settings window and the launcher, reload, and check that those choices persist. The icon popup should still open beside the launcher, not at the saved settings position.
+5. Test a source addon's own show and hide setting, and a load-on-demand button.
+6. Enter and leave combat with the drawer open. Watch for Lua errors, blocked actions, and taint.
+7. With more than 36 buttons and with different column counts, the icon grid should grow and still not scroll. Also check settings-list scrolling, an empty popup, Russian text, custom minimap shapes, a launcher near each screen edge, and the client's UI scale.
+8. Select each language in the native dropdown. Check translated labels and tooltips for clipping, reload, and confirm the choice persists. Switch back to automatic detection.

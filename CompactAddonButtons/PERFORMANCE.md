@@ -1,27 +1,14 @@
 # Memory and CPU review
 
-Reviewed on 2026-11-14 using PUC Lua 5.1 through Lupa 2.8 and the stateful WoW UI
-test double. This is a code/stress-test review, not a live-client profiler result.
+Reviewed on 2026-11-14 with PUC Lua 5.1 through Lupa 2.8 and the stateful WoW UI test double. The numbers below come from that harness. They are not a live-client profile.
 
 ## Findings and changes
 
-No unbounded retained Lua-memory growth, new frames or duplicate secure hooks
-were observed for a stable set of registered buttons after warming the UI pools.
-The original two-second polling path nevertheless sorted an unchanged list,
-rebuilt both dropdown menus and laid out the window even while it was closed.
+After the UI pools warmed up, a stable set of registered buttons showed no unbounded Lua-memory growth, no new frames, and no duplicate secure hooks. The original two-second poll still sorted an unchanged list, rebuilt both dropdown menus, and laid out the window while it was closed.
 
-The application now sorts only when a button is added or renamed. Menu generation
-is cached until the language, locale registration or column preference changes.
-Closed windows retain updated labels/preferences but defer layout until opening.
-The two-second discovery poll remains active so late-loaded buttons still appear.
-A closed window skips collection and layout when that poll adds or renames nothing
-and combat did not defer an update. Known buttons are not labeled or inspected for
-an icon again. An open window rewrites anchors only when the visible set, labels,
-exceptions, or launcher position change. A collected button that is already
-centered on its slot is left untouched.
+Sorting now runs when a button is added or renamed. Menu generation stays cached until the language, a locale registration, or the column preference changes. A closed window keeps labels and preferences up to date and waits to lay itself out until it opens. The two-second discovery poll still runs, so a late-loaded button still appears. When that poll adds or renames nothing, and combat did not defer an update, a closed window skips collection and layout. Known buttons are not labeled again and are not inspected for an icon again. An open window rewrites anchors when the visible set, labels, exceptions, or launcher position change. A collected button that is already centered on its slot is left alone.
 
-One local before/after run of 3,600 polling callbacks, representing two hours of
-timer intervals with the window closed, produced:
+One local run of 3,600 polling callbacks, two hours of timer intervals with the window closed, produced:
 
 | Measurement | Before | After |
 | --- | ---: | ---: |
@@ -34,32 +21,20 @@ timer intervals with the window closed, produced:
 | Retained Lua-memory delta after full GC | 0.375 KiB | 0.375 KiB |
 | Harness CPU time | 0.477 s | 0.071 s |
 
-The constant small memory delta includes measurement-table overhead. Timings are
-from this mock on one host and cannot predict in-game FPS or addon CPU usage.
-Regression checks use operation counts and retained-memory bounds, not timing.
+The small constant memory delta includes the measurement tables. These timings are from this mock on one host. They do not predict in-game frame rate or addon CPU use. Regression checks use operation counts and retained-memory bounds, not timings.
 
 ## Regression coverage
 
-`tests/run.py` runs all 16 locale/migration scenarios, then `performance_spec.lua`:
+`tests/run.py` runs all 16 locale and migration scenarios, then `performance_spec.lua`:
 
-- 3,600 idle polling callbacks (two hours of simulated timer intervals).
+- 3,600 idle polling callbacks, two hours of simulated timer intervals.
 - 36,000 idle frame callbacks at a simulated 60 Hz.
 - 1,000 scans with the popup visible and an unchanged button set.
 - One foreign `SetPoint` on a collected button, then 1,000 reparents onto its current slot.
-- 1,000 cycles opening/closing settings and the popup.
-- 1,000 exception enable/disable cycles.
-- Menu invalidation after preference/translation changes, one-time registration
-  and sorting of late buttons, and cancellation of the drag updater during combat.
+- 1,000 cycles that open and close settings and the popup.
+- 1,000 exception enable and disable cycles.
+- Menu invalidation after preference and translation changes, one-time registration and sorting of late buttons, and cancellation of the drag updater during combat.
 
-After warm-up, stable-population phases must create no additional frames/hooks,
-rebuild no unchanged menus, perform no redundant sorts, and retain less than 8 KiB
-of extra Lua memory per phase. Closed windows and an unchanged open drawer must
-not write text or anchors.
-The same suite runs against the extracted minified release package in CI.
+After warm-up, a stable population must create no extra frames or hooks, rebuild no unchanged menu, sort nothing that did not change, and keep extra Lua memory under 8 KiB per phase. A closed window, and an open drawer whose contents did not change, must not write text or anchors. CI runs the same suite against the extracted minified release package.
 
-Slots and settings rows are deliberately pooled up to the largest observed button
-count; registered buttons/hooks remain associated with their owner for the session.
-New genuine buttons can therefore increase the high-water memory use. The mock
-does not model native client allocations, Blizzard menu pools, other addons' scripts,
-rendering cost or real frame scheduling. Those require a separate client profile;
-this review did not change game files or enable client profiling.
+Slots and settings rows stay pooled up to the largest button count seen in the session. Registered buttons and hooks stay tied to their owner for that session, so a genuinely new button can raise the high-water memory use. The mock does not model native client allocations, Blizzard menu pools, other addons' scripts, rendering cost, or real frame scheduling. Those need a separate client profile. This review did not change game files and did not turn on client profiling.

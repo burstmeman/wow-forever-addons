@@ -1,8 +1,8 @@
 # Repository guide for coding agents
 
-This file applies to the complete repository. Read [CI.md](CI.md) before changing
+These rules cover the whole repository. Read [CI.md](CI.md) before changing
 checks, and [RELEASING.md](RELEASING.md) before changing packaging or publication.
-A more specific `AGENTS.md` can add rules for its own directory.
+A directory can add its own `AGENTS.md` for rules that apply only there.
 
 ## Project map
 
@@ -17,7 +17,7 @@ you add, remove, or move a runtime file, update the manifest and keep the file
 after its dependencies.
 
 Shared tooling lives in `.github/`. A change there can affect every addon.
-Addon behavior stays inside the addon directory unless the task asks for shared
+Keep addon behavior inside the addon directory unless the task asks for shared
 tooling.
 
 ## Runtime ownership
@@ -33,13 +33,13 @@ tooling.
   `Discovery.lua`.
 - Saved settings and language choice live in `Settings.lua` and
   `Localization.lua`. Locale packs register through
-  `ns.Localization.Register`. User-visible strings are keys in those packs,
-  not a `L["text"]` table.
+  `ns.Localization.Register`. User-visible strings are keys in those packs.
+  Do not use an `L["text"]` table.
 - Frames live under `UI/`. `UI/Window.lua` owns the grid and the exceptions
   panel. `UI/MinimapButton.lua` owns the launcher. Widget helpers stay in
   `UI/Widgets.lua`.
-- Follow the module already on `ns` instead of adding a second registry for
-  the same responsibility.
+- Follow the module already on `ns`. Do not add a second registry for the
+  same responsibility.
 
 ## Persistent data
 
@@ -47,7 +47,8 @@ tooling.
 names are saved variables. Players may still have the compatibility name.
 
 - Treat persisted table shapes, absent fields, `nil`, and `false` as
-  compatibility behavior. Malformed saved data must recover, not trap login.
+  compatibility behavior. Malformed saved data must recover. It must not trap
+  login.
 - Do not rename or drop a saved field unless old data still loads.
 - Keep the public alias `BetterAddonButtons` working. Do not add reminders
   about previous addon names to README files.
@@ -85,8 +86,8 @@ into secure code blocks protected actions and raises errors for users. See
   Before such an operation, follow the addon: check `InCombatLockdown()` and,
   for a captured button, `IsProtected()`, then defer the change.
 - `Application.lua` records pending work and applies it on
-  `PLAYER_REGEN_ENABLED`. Use that lifecycle instead of touching protected
-  frames while combat lockdown is active.
+  `PLAYER_REGEN_ENABLED`. Use that lifecycle. Do not touch a protected frame
+  while combat lockdown is active.
 
 ## Code conventions
 
@@ -106,7 +107,7 @@ into secure code blocks protected actions and raises errors for users. See
   or speculative refactoring. Stay inside the requested addon directory, or
   inside explicitly requested shared tooling.
 - Prefer a clear local branch over a new abstraction when the abstraction does
-  not remove a real invalid state, repeated decision, or repeated lookup.
+  not remove a real invalid state, a repeated decision, or a repeated lookup.
 - Explain non-obvious ownership, lifecycle, and compatibility decisions. Do
   not add comments that only repeat the code.
 - Do not add a comment at every place you change. Never repeat the same
@@ -147,21 +148,21 @@ you use the owning command.
 
 ## Reasoning before changes
 
-Source-based reasoning is required for behavior changes. A passing harness or
-CI job does not replace it. Before editing, explain the affected behavior and,
-for fixes, the actual failure path. Include file references and the rule the
-change must preserve. Keep facts, assumptions, and unknowns distinct.
+Behavior changes need an explanation from the source. A green harness or CI
+job does not replace that explanation. Before editing, describe the affected
+behavior. For a fix, name the failure path. Include file references and the
+rule the change must preserve. Keep facts, assumptions, and unknowns distinct.
 
-- Trace the real entry point, callers, and state owner. Check `.toc` order,
+- Trace the entry point the game calls, plus its callers and the state owner. Check `.toc` order,
   saved-variable compatibility, and the Forever API contract. A direct call
-  to an internal function does not prove runtime reachability.
+  to an internal function does not prove the game reaches that function.
 - Trace the affected lifecycle: load, login, scan, combat start, combat end,
   and saved-data recovery as applicable. For deferred work, identify the
   actual event boundary and its ordering. Do not invent an interleaving
-  merely because a harness can construct it.
-- Treat a guard, fallback, or swallowed error as a behavior change. Determine
-  whether missing state is valid or indicates a broken caller contract.
-  Repair the cause; do not silently accept invalid state to make a test pass.
+  because a harness can construct it.
+- Treat a guard, a fallback, or a swallowed error as a behavior change.
+  Decide whether missing state is valid or a broken caller contract. Repair
+  the cause. Do not accept invalid state so a test can pass.
 - Tie each added branch or helper to a demonstrated defect or an explicit
   requirement. Before finishing, ask what assumption would make the fix
   unnecessary or wrong, then check that assumption against the source.
@@ -169,17 +170,18 @@ change must preserve. Keep facts, assumptions, and unknowns distinct.
 
 ## Validation
 
-WoW supplies runtime behavior that the local Lua harness does not reproduce.
-Use source inspection and the documented client contracts as the primary local
-evidence. Verify behavior in World of Warcraft: Forever when available. When
-it is not available, state the specific in-game behavior that remains
-unverified; do not replace that gap with a stronger test claim.
+The local Lua harness does not reproduce WoW's runtime. Use source inspection
+and the documented client contracts as the primary local evidence. Verify
+behavior in World of Warcraft: Forever when you can. When you cannot, name the
+in-game behavior that is still unverified. Do not describe that gap as if a
+test had covered it.
 
 `CompactAddonButtons/tests/wow_mock.lua` is the focused UI double for this
 addon. Extend it when a changed call needs a WoW API the addon already uses.
 Do not grow it into a general client, and do not add a second mock. Identify
-what the double stubs before treating a green run as evidence. Synthetic
-states can test robustness, but they do not establish a supported failure path.
+what the double stubs before treating a green run as evidence. A synthetic
+state can test how the code handles bad input. It does not establish a
+supported failure path.
 
 For every change:
 
@@ -194,8 +196,8 @@ For every change:
    after `python .github/ci/lua_format.py setup`. Use `fix` to rewrite Lua that
    the check rejects.
 5. Review the final diff against the source-based explanation. Report the
-   relevant evidence, checks actually run, and remaining uncertainty. Scale
-   this explanation to the change; test counts alone are not validation.
+   relevant evidence, the checks you actually ran, and what is still uncertain.
+   Scale this explanation to the change. A test count by itself is not validation.
 
 Also check the relevant boundaries:
 
@@ -224,8 +226,8 @@ reports it as passed.
   hash, then resolve the thread.
 - Keep a reviewer's statement separate from your interpretation. Investigate
   vague feedback before changing code. If materially different fixes remain
-  possible, explain the evidence and ask for clarification instead of
-  presenting a guessed rationale as established fact.
+  possible, explain the evidence and ask for clarification. Do not present a
+  guessed rationale as established fact.
 - Sign agent-authored pull requests, issues, and review comments with a footer
   that names the agent and the model. Do not put that signature in a commit
   message or a `Co-authored-by` trailer. Example:
@@ -239,14 +241,14 @@ reports it as passed.
 
 ## Keep this guide current
 
-This guide is a living document. When a review correction teaches you a
-durable, repository-wide rule or fact that this guide does not state, or shows
-that a statement here is wrong, update `AGENTS.md` in the same pull request as
-a separate commit.
+Update this guide when a review correction teaches a repository-wide rule that
+is missing here, or shows that a statement here is wrong. Put that update in
+the same pull request, as a separate commit.
 
 - Record the rule, not the incident. Verify the statement against the
   repository first, write it in the guide's style, and put it in the section
   where an agent would look for it.
 - Do not record feedback that only applies to one change.
-- Correct or delete a wrong statement instead of adding a second one next to
-  it. A wrong rule is worse than a missing one.
+- Correct or delete a wrong statement. Do not leave the wrong statement in
+  place and add a second one beside it. A wrong rule is worse than a missing
+  one.
