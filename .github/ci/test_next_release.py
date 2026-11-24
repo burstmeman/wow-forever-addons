@@ -23,8 +23,6 @@ class FakeAPI:
     def text(self, path, ref, optional=False):
         if path == "Example/Example.toc":
             return "## Author: burstmeman\r\n## Version: " + ("1.2.9" if ref == "d" * 40 else "1.2.8") + "\r\nMain.lua\r\n"
-        if path == "Example/README.md":
-            return "# Example\nVersion **1.2.8**.\n"
         if path == "release-requests/Example.json":
             return self.files[path]
         raise AssertionError(path)
@@ -103,9 +101,8 @@ class NextReleaseTests(unittest.TestCase):
 
     def test_only_versions_and_request_metadata_change(self):
         self.prepare()
-        self.assertEqual(set(self.api.files), {"Example/Example.toc", "Example/README.md", "release-requests/Example.json"})
+        self.assertEqual(set(self.api.files), {"Example/Example.toc", "release-requests/Example.json"})
         self.assertEqual(self.api.files["Example/Example.toc"], "## Author: burstmeman\r\n## Version: 1.2.9\r\nMain.lua\r\n")
-        self.assertIn("Version **1.2.9**", self.api.files["Example/README.md"])
         intent = json.loads(self.api.files["release-requests/Example.json"])
         self.assertEqual(intent["tag"], "Example/v1.2.9")
         self.assertEqual(self.api.tags, {})

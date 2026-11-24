@@ -1,26 +1,26 @@
 # WoW Forever Addons
 
-A collection of addons for **World of Warcraft: Forever**, with shared CI and independent versions and releases for each addon.
+Addons for World of Warcraft: Forever. Each addon has its own version and its own release. CI is shared.
 
 ## Addons
 
-| Addon | Purpose |
+| Addon | What it does |
 | --- | --- |
-| [Compact Addon Buttons](CompactAddonButtons/README.md) | Collects minimap buttons into a compact grid, with configurable columns, per-button exceptions and multiple languages. |
+| [Compact Addon Buttons](CompactAddonButtons/README.md) | Gathers minimap buttons into a small grid. You can set the columns, leave individual buttons on the minimap, and pick a language. |
 
-## Repository structure
+## How the repo is laid out
 
-- Each addon lives in its own directory.
-- [`addons.yml`](addons.yml) registers addon paths, tests, packaging rules and CurseForge projects.
-- [`.github/workflows/`](.github/workflows/) contains shared CI and release automation.
-- Source code stays readable; release builds minify Lua and package only runtime files, required assets and the license.
+- One directory per addon.
+- [`addons.yml`](addons.yml) lists paths, tests, package rules, and CurseForge projects.
+- [`.github/workflows/`](.github/workflows/) holds the shared CI and release jobs.
+- Source in git stays readable. A release build minifies Lua and packs the runtime files, the assets the game needs, and the license.
 
-PR checks select affected addons and run tests, Lua security checks and dependency audits. Shared checks scan for secrets and unsafe workflows. Package checks verify the ZIP contents and test the extracted addon. See [CI.md](CI.md).
+A pull request tests the addons it touches. It also checks Lua and audits dependencies. Shared jobs look for secrets and unsafe workflows. Package jobs open the ZIP and test the unpacked addon. More detail is in [CI.md](CI.md).
 
 ## Releases
 
-Run **Actions → Next addon version**, select the addon and a `patch`, `minor` or `major` bump, then review and merge the generated PR. Automation creates the addon tag, builds and verifies its package, uploads it to CurseForge and publishes the GitHub Release.
+In Actions, run Next addon version. Pick the addon and `patch`, `minor`, or `major`. Review the pull request, then merge it. The workflow tags the addon, builds the package, checks it, uploads it to CurseForge, and publishes the GitHub Release.
 
-Install the attached `AddonName-version.zip` or the CurseForge download into the client's `Interface/AddOns/` directory. GitHub's automatic **Source code** archives contain the repository and are not installable addon packages.
+Put `AddonName-version.zip` from that release, or the CurseForge file, in the client's `Interface/AddOns/` directory. GitHub also attaches Source code archives. Those are this repository, so install the addon ZIP.
 
-See [RELEASING.md](RELEASING.md) for configuration, previews and deployment details.
+Setup, preview builds, and upload rules are in [RELEASING.md](RELEASING.md).
