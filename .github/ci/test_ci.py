@@ -1,11 +1,13 @@
 """Exercise routing and security policies without executing addon code."""
 import copy
+import re
 import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 
 import addons
+import lua_tests
 import security
 
 
@@ -88,15 +90,75 @@ class RoutingTests(unittest.TestCase):
                 addons.ROOT, addons.CONFIG = previous_root, previous_config
 
 
+class SuiteTests(unittest.TestCase):
+    def test_specs_stay_inside_the_addon_tests_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            addon = Path(directory) / "Example"
+            tests = addon / "tests"
+            tests.mkdir(parents=True)
+            (tests / "wow_mock.lua").write_text("-- mock", encoding="utf-8")
+            (tests / "addon_spec.lua").write_text("-- spec", encoding="utf-8")
+            mock, specs, once = lua_tests.suite_files(addon, ["addon_spec.lua"])
+            self.assertEqual(mock, (tests / "wow_mock.lua").resolve())
+            self.assertEqual(specs, [(tests / "addon_spec.lua").resolve()])
+            self.assertEqual(once, [])
+            for name in ("../outside.lua", "nested/spec.lua", "missing_spec.lua"):
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    lua_tests.suite_files(addon, [name])
+
+    def test_one_shot_spec_requires_the_locale_matrix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            addon = Path(directory) / "Example"
+            tests = addon / "tests"
+            tests.mkdir(parents=True)
+            (tests / "wow_mock.lua").write_text("-- mock", encoding="utf-8")
+            (tests / "performance_spec.lua").write_text("-- once", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "locale matrix"):
+                lua_tests.suite_files(addon, [], ["performance_spec.lua"])
+
+    def test_registered_runners_delegate_without_hardcoding_the_directory(self):
+        for addon in addons.registry():
+            if not addon.get("tests"):
+                continue
+            text = (addons.ROOT / addon["path"] / "tests/run.py").read_text(encoding="utf-8")
+            with self.subTest(addon=addon["name"]):
+                self.assertIn("run_suite", text)
+                self.assertNotIn(addon["name"], text)
+
+
 class PolicyTests(unittest.TestCase):
-    def test_direct_and_aliased_capabilities(self):
-        for code in ('SendChatMessage(secret)', 'local send = SendAddonMessage; send(secret)',
-                     'loadstring(payload)()', 'local run = os.execute', 'C_ChatInfo.SendAddonMessage(secret)',
-                     'local env = _G', '_G[key](data)', '_G["Send" .. "ChatMessage"](data)',
-                     '_G["SendChatMessage"](data)', 'getfenv()[key](data)', 'rawget(_G, key)',
+    def test_environment_lookups_and_payloads(self):
+        for code in ('local env = _G', '_G[key](data)', '_G["Send" .. "ChatMessage"](data)',
+                     '_G["SendChatMessage"](data)', 'rawget(_G, key)',
                      'local payload = "\\083\\101\\110\\100"', 'local url = "https://example.invalid"'):
             with self.subTest(code=code):
                 self.assertTrue(security.inspect_source(code))
+
+    def test_global_names_are_left_to_luacheck(self):
+        for code in ('SendChatMessage(secret)', 'local send = SendAddonMessage; send(secret)',
+                     'loadstring(payload)()', 'local run = os.execute',
+                     'C_ChatInfo.SendAddonMessage(secret)', 'getfenv()[key](data)'):
+            with self.subTest(code=code):
+                self.assertFalse(security.inspect_source(code))
+
+    def test_shared_allowlist_excludes_capabilities(self):
+        text = security.LUACHECKRC.read_text(encoding="utf-8")
+        self.assertIn('std = "none"', text)
+        self.assertIn("inline = false", text)
+        names = set(re.findall(r'"([A-Za-z_][A-Za-z0-9_]*)"', text))
+        forbidden = """getfenv setfenv getglobal setglobal rawget rawset getmetatable setmetatable
+            load loadstring loadfile dofile require module collectgarbage io os debug package python
+            ffi socket http https RunScript RunMacro RunMacroText SendChatMessage SendAddonMessage
+            BNSendWhisper BNSendGameData BNSendConversationMessage RegisterAddonMessagePrefix SendMail
+            C_ChatInfo C_BattleNet C_Club C_HTTP""".split()
+        self.assertFalse(names & set(forbidden))
+
+    def test_luacheck_command_uses_the_shared_config_and_addon_exports(self):
+        command = security.luacheck_command(["Addon/Main.lua"], {"globals": ["MyAddon"]})
+        self.assertEqual(command[:2], ["luacheck", "Addon/Main.lua"])
+        self.assertIn(str(security.LUACHECKRC), command)
+        self.assertNotIn("--no-config", command)
+        self.assertEqual(command[command.index("--globals") + 1:], ["SlashCmdList", "MyAddon"])
 
     def test_comments_and_ui_code(self):
         self.assertFalse(security.inspect_source('-- SendChatMessage\n--[=[ loadstring _G ]=]\nlocal x = math.max(1, 2)'))

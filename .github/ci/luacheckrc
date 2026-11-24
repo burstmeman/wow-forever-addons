@@ -1,0 +1,34 @@
+-- Shared read allowlist for every addon directory.
+-- Luacheck parses syntax and globals. Per-addon exports come from addons.yml
+-- on the command line. Inline options stay off so a runtime file cannot
+-- weaken this list.
+std = "none"
+inline = false
+cache = false
+read_globals = {
+    "ipairs",
+    "pairs",
+    "type",
+    "tostring",
+    "tonumber",
+    "unpack",
+    "select",
+    "print",
+    "math",
+    "table",
+    "string",
+    "CreateFrame",
+    "UIParent",
+    "Minimap",
+    "MinimapBackdrop",
+    "GameTooltip",
+    "GetLocale",
+    "GetMinimapShape",
+    "GetCursorPosition",
+    "InCombatLockdown",
+    "LibStub",
+    "hooksecurefunc",
+    "UISpecialFrames",
+    "tinsert",
+    "_G",
+}
