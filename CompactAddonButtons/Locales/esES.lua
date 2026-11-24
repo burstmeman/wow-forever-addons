@@ -1,6 +1,7 @@
 local _, ns = ...
 ns.Localization.Register("esES", "Español", {
     TITLE = "Botones de addons",
+    MINIMAP_TITLE = "Botones de addons compactos",
     SETTINGS = "Excepciones",
     BACK = "Volver",
     EMPTY = "Aún no se han encontrado botones de addons.",
