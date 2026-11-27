@@ -37,6 +37,14 @@ for _, language in ipairs(L.GetLanguages()) do
     assert(CompactAddonButtons.GetLanguage() == language.locale)
     assert(search.hint:GetText() == L.Text("SEARCH"), "existing widgets translate immediately")
     assert(dropdown.selectedText == language.name)
+    local titleFound = false
+    for _, frame in ipairs(TestUI.frames) do
+        if frame.kind == "FontString" and frame:GetText() == "CompactAddonButtons Settings" then titleFound = true end
+    end
+    assert(
+        titleFound and L.Text("TITLE") == "CompactAddonButtons Settings",
+        "settings title is consistent across shipped languages"
+    )
 end
 assert(CompactAddonButtons.SetLanguage("esMX"))
 assert(Settings.GetLanguage() == "esES" and dropdown.selectedText == "Español")

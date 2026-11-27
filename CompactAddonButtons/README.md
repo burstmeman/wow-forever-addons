@@ -34,6 +34,8 @@ The popup sits next to the launcher. It opens toward the middle of the screen an
 
 Search and the exception list are in the larger settings window. Right-click opens it. Its position is saved on its own. Only that list scrolls.
 
+**CompactAddonButtons Settings** groups controls into General, Popup position and Minimap buttons. Manual placement offers four sides (left, right, above and below) and separate X/Y sliders from -255 to 256. Offsets move the popup relative to the chosen side, which keeps a six-pixel default gap. Existing side/gap settings migrate to X/Y; old diagonal choices map to their left/right side. Automatic placement remains the default.
+
 Opening settings also shows a live preview of the icon grid beside the minimap launcher. Changes to columns, exceptions, placement and offset immediately update the preview. Searching filters only the exceptions list. Closing settings or entering combat hides the preview too.
 
 Settings, language, exceptions, the settings window, and the minimap button position are saved per account. The window uses the game fonts and the game's own controls, with a dark background and a thin muted gold border.

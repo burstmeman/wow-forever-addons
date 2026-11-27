@@ -129,8 +129,8 @@ function App.SetPopupManual(enabled)
     return true
 end
 
-function App.SetPopup(anchor, offset)
-    if not ns.Settings.SetPopup(anchor, offset) then return false end
+function App.SetPopup(anchor, x, y)
+    if not ns.Settings.SetPopup(anchor, x, y) then return false end
     if ready then App.Apply() end
     return true
 end
