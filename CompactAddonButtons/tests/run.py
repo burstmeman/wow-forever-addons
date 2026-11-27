@@ -11,6 +11,6 @@ from lua_tests import run_suite
 # continue from that state, so keep them in dependency order.
 run_suite(
     Path(__file__).resolve().parents[1],
-    specs=("addon_spec.lua", "localization_spec.lua"),
+    specs=("addon_spec.lua", "settings_spec.lua", "localization_spec.lua"),
     once=("performance_spec.lua",),
 )

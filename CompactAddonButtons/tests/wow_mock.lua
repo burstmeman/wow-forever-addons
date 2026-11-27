@@ -1,5 +1,5 @@
 local combat, frames = false, {}
-local stats = { hooks = 0, menus = 0, choices = 0, textWrites = 0, pointWrites = 0 }
+local stats = { hooks = 0, menus = 0, choices = 0, textWrites = 0, pointWrites = 0, textureWrites = 0 }
 local methods = {}
 local function noop() end
 for _, method in ipairs({
@@ -11,8 +11,7 @@ for _, method in ipairs({
     "RegisterForDrag",
     "RegisterForClicks",
     "SetHighlightTexture",
-    "SetTexture",
-    "SetTexCoord",
+    "SetVertexColor",
     "SetJustifyH",
     "SetHitRectInsets",
     "SetTextColor",
@@ -25,6 +24,13 @@ for _, method in ipairs({
 }) do
     methods[method] = noop
 end
+function methods:SetTexture(value)
+    stats.textureWrites = stats.textureWrites + 1
+    self.image = value
+end
+function methods:GetTexture() return self.image end
+function methods:SetTexCoord(...) self.coords = { ... } end
+function methods:GetTexCoord() return unpack(self.coords or { 0, 0, 0, 1, 1, 0, 1, 1 }) end
 function methods:GetName() return self.name end
 function methods:GetParent() return self.parent end
 function methods:GetChildren()
@@ -103,6 +109,26 @@ function methods:SetChecked(value) self.checked = value end
 function methods:SetEnabled(enabled) self.enabled = enabled and true or false end
 function methods:IsEnabled() return self.enabled ~= false end
 function methods:GetChecked() return self.checked end
+function methods:SetJustifyH(value) self.justifyH = value end
+function methods:GetJustifyH() return self.justifyH end
+function methods:SetOrientation(value) self.orientation = value end
+function methods:SetMinMaxValues(minimum, maximum)
+    self.minimum, self.maximum = minimum, maximum
+end
+function methods:GetMinMaxValues() return self.minimum, self.maximum end
+function methods:SetValueStep(value) self.step = value end
+function methods:SetThumbTexture(value)
+    self.thumb = CreateFrame("Texture", nil, self)
+    self.thumb.texture = value
+end
+function methods:GetThumbTexture() return self.thumb end
+function methods:GetValue() return self.sliderValue or 0 end
+function methods:SetValue(value)
+    value = math.max(self.minimum, math.min(self.maximum, value))
+    if self.sliderValue == value then return end
+    self.sliderValue = value
+    if self.scripts.OnValueChanged then self.scripts.OnValueChanged(self, value) end
+end
 function methods:ClearFocus() self.focus = false end
 function methods:SetVerticalScroll(value) self.scroll = value end
 function methods:GetVerticalScroll() return self.scroll or 0 end

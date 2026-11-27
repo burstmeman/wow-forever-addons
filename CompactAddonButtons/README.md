@@ -22,7 +22,6 @@ You can leave out the `tests` directory and this README. They are for developmen
 | Language dropdown in settings | Use the client language, or pick one |
 | Buttons per row dropdown in settings | Choose 1 to 12 columns (default: 6); saved per account |
 | Search in settings | Filter the exceptions list by button name |
-| Refresh in settings | Look for buttons that were just created |
 | Escape, or left-click the addon button again | Close the popup |
 | `/cab` or `/compactaddonbuttons` | Open or close the drawer |
 | `/cab settings` | Open or close the exceptions list |
@@ -32,7 +31,9 @@ The popup is a tight grid of addon icons on a lightly see-through background. It
 
 The popup sits next to the launcher. It opens toward the middle of the screen and stays inside the screen edges. Names and help text come from the original button tooltips.
 
-Search and the exception list are in the larger settings window. Right-click opens it. Its position is saved on its own. Only that list scrolls.
+Search and the exception list are in the larger settings window. Right-click opens it. Its position is saved on its own. Only that list scrolls. Buttons are discovered automatically every two seconds and whenever you open the window.
+
+**CompactAddonButtons Settings** puts general and placement controls on the left and a larger searchable button list on the right. Each row shows the button's icon and name. Simple headings and separator lines divide the controls. Manual placement uses X/Y sliders from -255 to 256, with a live preview. Existing saved placement is preserved; automatic placement remains the default.
 
 Opening settings also shows a live preview of the icon grid beside the minimap launcher. Changes to columns, exceptions, placement and offset immediately update the preview. Searching filters only the exceptions list. Closing settings or entering combat hides the preview too.
 

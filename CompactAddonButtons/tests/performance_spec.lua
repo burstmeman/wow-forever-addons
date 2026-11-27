@@ -38,6 +38,7 @@ local function sample()
         menus = stats.menus,
         choices = stats.choices,
         textWrites = stats.textWrites,
+        textureWrites = stats.textureWrites,
         pointWrites = stats.pointWrites,
         memory = collectgarbage("count"),
         sorts = sorts,
@@ -61,6 +62,7 @@ local function phase(name, count, callback)
         menus = after.menus - before.menus,
         choices = after.choices - before.choices,
         textWrites = after.textWrites - before.textWrites,
+        textureWrites = after.textureWrites - before.textureWrites,
         pointWrites = after.pointWrites - before.pointWrites,
         sorts = after.sorts - before.sorts,
     }
@@ -97,7 +99,7 @@ for _, result in ipairs(results) do
     assert(result.sorts == 0, "unchanged button lists must not be re-sorted")
     if result.name:find("^idle") or result.name == "visible-scans" or result.name == "settings-preview-scans" then
         assert(
-            result.pointWrites == 0 and result.textWrites == 0,
+            result.pointWrites == 0 and result.textWrites == 0 and result.textureWrites == 0,
             "unchanged windows must not be laid out or repainted"
         )
     end
@@ -109,10 +111,10 @@ assert(ns.App.SetColumns(7) and CompactAddonButtonsColumns.selectedText == "7")
 assert(stats.menus == builds + 1)
 ns.App.SetColumns(6)
 builds = stats.menus
-local label = ns.Localization.Text("SCAN")
-assert(ns.Localization.Register("enUS", "English", { SCAN = "Updated scan label" }))
-assert(stats.menus == builds + 3, "translation registration must invalidate labels and every menu")
-ns.Localization.Register("enUS", "English", { SCAN = label })
+local label = ns.Localization.Text("BUTTONS_PER_ROW")
+assert(ns.Localization.Register("enUS", "English", { BUTTONS_PER_ROW = "Updated column label" }))
+assert(stats.menus == builds + 2, "translation registration must invalidate labels and every menu")
+ns.Localization.Register("enUS", "English", { BUTTONS_PER_ROW = label })
 
 -- Discovery remains active, while each genuinely new entry is hooked/sorted once.
 local beforeSort, beforeHooks = sorts, stats.hooks

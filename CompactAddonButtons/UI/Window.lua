@@ -2,19 +2,21 @@ local _, ns = ...
 local Window = {}
 ns.Window = Window
 local T = ns.Localization.Text
-local text, skin, smallButton = ns.Widgets.Text, ns.Widgets.Skin, ns.Widgets.Button
+local text, skin = ns.Widgets.Text, ns.Widgets.Skin
 local floor, max = math.floor, math.max
 local rows, slots = {}, {}
-local panel, content, gridContent, scroll, empty, footer, search, modeButton
+local panel, content, gridContent, scroll, empty, footer, search
 local preview, previewEmpty
-local header, close, scan, title, languageLabel, languageDropdown
+local header, close, title, languageLabel, languageDropdown
 local columnsLabel, columnsDropdown
-local manualCheck, manualLabel, anchorLabel, anchorDropdown, offsetLabel, offsetBox
+local manualCheck, manualLabel
+local sections, offsets = {}, {}
 local settingsMode = false
 local query = ""
-local textLocale, textRevision, menuPreference, menuColumns, menuPopupAnchor
-local lastLayout, popupManual, popupAnchor, popupOffset, popupX, popupY, popupScale
-local WIDTH, HEIGHT, CELL = 384, 432, 32
+local textLocale, textRevision, menuPreference, menuColumns
+local lastLayout, popupManual, popupAnchor, popupOffsetX, popupOffsetY, popupX, popupY, popupScale
+local WIDTH, HEIGHT, CELL = 780, 540, 32
+local LEFT_WIDTH, RIGHT_WIDTH = 308, 384
 local PADDING = 3
 
 local function savePosition()
@@ -25,11 +27,15 @@ end
 local function rowAt(index)
     if rows[index] then return rows[index] end
     local row = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
+    ns.Widgets.Layer(row, content)
     row:SetSize(26, 26)
-    row.label = text(row, "GameFontHighlight", "", 30, -5)
-    row.label:SetWidth(270)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(22, 22)
+    row.icon:SetPoint("TOPLEFT", 30, -2)
+    row.label = text(row, "GameFontHighlight", "", 60, -5)
+    row.label:SetWidth(RIGHT_WIDTH - 104)
     row.label:SetJustifyH("LEFT")
-    row:SetHitRectInsets(0, -280, 0, 0)
+    row:SetHitRectInsets(0, -(RIGHT_WIDTH - 70), 0, 0)
     row:SetScript("OnClick", function(self) ns.App.SetException(self.entry.key, self:GetChecked()) end)
     row:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -41,6 +47,46 @@ local function rowAt(index)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
     rows[index] = row
     return row
+end
+
+-- Copy the image, never reparent a region owned by another addon.
+local function iconRegion(button)
+    local candidates = { button.icon, button.Icon, button.GetNormalTexture and button:GetNormalTexture() }
+    for index = 1, 3 do
+        local candidate = candidates[index]
+        local kind = type(candidate)
+        if kind == "string" or kind == "number" then return candidate end
+        if (kind == "table" or kind == "userdata") and candidate.GetTexture and candidate:GetTexture() then
+            return candidate
+        end
+    end
+    for _, region in ipairs({ button:GetRegions() }) do
+        if region:IsObjectType("Texture") and region:GetTexture() then return region end
+    end
+end
+
+local function refreshRowIcon(row)
+    local source = iconRegion(row.entry.button)
+    local texture, coords
+    if type(source) == "table" or type(source) == "userdata" then
+        texture = source:GetTexture()
+        coords = table.concat({ source:GetTexCoord() }, ",")
+    else
+        texture = source or "Interface\\Icons\\INV_Misc_QuestionMark"
+        coords = "0,1,0,1"
+    end
+    if texture ~= row.iconTexture then
+        row.icon:SetTexture(texture)
+        row.iconTexture = texture
+    end
+    if coords ~= row.iconCoords then
+        if type(source) == "table" or type(source) == "userdata" then
+            row.icon:SetTexCoord(source:GetTexCoord())
+        else
+            row.icon:SetTexCoord(0, 1, 0, 1)
+        end
+        row.iconCoords = coords
+    end
 end
 
 function Window.CreateSlot()
@@ -63,19 +109,15 @@ end
 -- The named side is where the window sits relative to the launcher.
 -- The returned point is the window edge that touches that side.
 local POPUP_POINTS = {
-    LEFT = { "RIGHT", "LEFT", -1, 0 },
-    RIGHT = { "LEFT", "RIGHT", 1, 0 },
-    TOP = { "BOTTOM", "TOP", 0, 1 },
-    BOTTOM = { "TOP", "BOTTOM", 0, -1 },
-    TOPLEFT = { "BOTTOMRIGHT", "TOPLEFT", -1, 1 },
-    TOPRIGHT = { "BOTTOMLEFT", "TOPRIGHT", 1, 1 },
-    BOTTOMLEFT = { "TOPRIGHT", "BOTTOMLEFT", -1, -1 },
-    BOTTOMRIGHT = { "TOPLEFT", "BOTTOMRIGHT", 1, -1 },
+    LEFT = { "RIGHT", "LEFT", -6, 0 },
+    RIGHT = { "LEFT", "RIGHT", 6, 0 },
+    TOP = { "BOTTOM", "TOP", 0, 6 },
+    BOTTOM = { "TOP", "BOTTOM", 0, -6 },
 }
 
-function Window.PopupPoint(anchor, offset)
+function Window.PopupPoint(anchor, x, y)
     local spec = POPUP_POINTS[anchor]
-    return spec[1], spec[2], spec[3] * offset, spec[4] * offset
+    return spec[1], spec[2], spec[3] + x, spec[4] + y
 end
 
 function Window.PositionPopup()
@@ -84,7 +126,11 @@ function Window.PositionPopup()
     local target = settingsMode and preview or panel
     local point, relative, x, y
     if ns.Settings.GetPopupManual() then
-        point, relative, x, y = Window.PopupPoint(ns.Settings.GetPopupAnchor(), ns.Settings.GetPopupOffset())
+        point, relative, x, y = Window.PopupPoint(
+            ns.Settings.GetPopupAnchor(),
+            ns.Settings.GetPopupOffsetX(),
+            ns.Settings.GetPopupOffsetY()
+        )
     else
         local centerX, centerY = launcher:GetCenter()
         if not centerX or not centerY then return false end
@@ -101,12 +147,10 @@ function Window.PositionPopup()
 end
 
 local function layout(gridCount)
-    panel:SetBackdropColor(0.055, 0.05, 0.045, settingsMode and 0.97 or 0.88)
+    panel:SetBackdropColor(0.055, 0.05, 0.045, settingsMode and 0.80 or 0.88)
     header:SetShown(settingsMode)
     close:SetShown(settingsMode)
     search:SetShown(settingsMode)
-    modeButton:SetShown(settingsMode)
-    scan:SetShown(settingsMode)
     footer:SetShown(settingsMode)
     languageLabel:SetShown(settingsMode)
     languageDropdown:SetShown(settingsMode)
@@ -114,10 +158,9 @@ local function layout(gridCount)
     columnsDropdown:SetShown(settingsMode)
     manualCheck:SetShown(settingsMode)
     manualLabel:SetShown(settingsMode)
-    anchorLabel:SetShown(settingsMode)
-    anchorDropdown:SetShown(settingsMode)
-    offsetLabel:SetShown(settingsMode)
-    offsetBox:SetShown(settingsMode)
+    for _, block in ipairs(sections) do
+        block:SetShown(settingsMode)
+    end
     scroll:SetShown(settingsMode)
     local target = settingsMode and preview or panel
     if gridContent:GetParent() ~= target then
@@ -141,13 +184,14 @@ local function layout(gridCount)
     previewEmpty:SetWidth(width - PADDING * 2)
     scroll:ClearAllPoints()
     empty:ClearAllPoints()
+    empty:SetParent(settingsMode and sections[3] or panel)
     if settingsMode then
         panel:SetSize(WIDTH, HEIGHT)
-        scroll:SetPoint("TOPLEFT", 16, -228)
-        scroll:SetPoint("BOTTOMRIGHT", -30, 52)
-        content:SetWidth(336)
-        empty:SetPoint("TOPLEFT", 24, -278)
-        empty:SetWidth(330)
+        scroll:SetPoint("TOPLEFT", sections[3], "TOPLEFT", 12, -90)
+        scroll:SetPoint("BOTTOMRIGHT", sections[3], "BOTTOMRIGHT", -26, 12)
+        content:SetWidth(RIGHT_WIDTH - 38)
+        empty:SetPoint("TOPLEFT", sections[3], "TOPLEFT", 12, -112)
+        empty:SetWidth(RIGHT_WIDTH - 38)
     else
         empty:SetPoint("CENTER", panel, "CENTER", 0, 0)
         empty:SetWidth(width - PADDING * 2)
@@ -161,7 +205,6 @@ local function writeText(widget, value)
 end
 
 local function updateChrome()
-    writeText(modeButton, settingsMode and T("BACK") or T("SETTINGS"))
     writeText(footer, ns.App.IsPending() and T("COMBAT") or (settingsMode and T("EXCEPTIONS") or T("HINT")))
 end
 
@@ -184,7 +227,8 @@ end
 local function placePopup(force)
     local launcher = ns.MinimapButton.GetFrame()
     local manual = ns.Settings.GetPopupManual()
-    local anchor, offset = ns.Settings.GetPopupAnchor(), ns.Settings.GetPopupOffset()
+    local anchor = ns.Settings.GetPopupAnchor()
+    local offsetX, offsetY = ns.Settings.GetPopupOffsetX(), ns.Settings.GetPopupOffsetY()
     local x, y, scale
     if launcher then
         x, y = launcher:GetCenter()
@@ -194,7 +238,8 @@ local function placePopup(force)
         not force
         and manual == popupManual
         and anchor == popupAnchor
-        and offset == popupOffset
+        and offsetX == popupOffsetX
+        and offsetY == popupOffsetY
         and x == popupX
         and y == popupY
         and scale == popupScale
@@ -202,7 +247,8 @@ local function placePopup(force)
         return
     end
     if not Window.PositionPopup() then return end
-    popupManual, popupAnchor, popupOffset, popupX, popupY, popupScale = manual, anchor, offset, x, y, scale
+    popupManual, popupAnchor, popupOffsetX, popupOffsetY, popupX, popupY, popupScale =
+        manual, anchor, offsetX, offsetY, x, y, scale
 end
 
 function Window.IsShown() return panel ~= nil and panel:IsShown() end
@@ -225,6 +271,11 @@ function Window.Refresh(force)
     local columns = Window.GridMetrics(#grid, ns.Settings.GetColumns())
     local key = layoutKey(visible, grid, columns)
     if not force and key == lastLayout then
+        if settingsMode then
+            for _, row in ipairs(rows) do
+                if row:IsShown() then refreshRowIcon(row) end
+            end
+        end
         updateChrome()
         placePopup(false)
         return
@@ -237,6 +288,7 @@ function Window.Refresh(force)
             count = count + 1
             local row = rowAt(count)
             row.entry = entry
+            refreshRowIcon(row)
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", 0, -(count - 1) * 30)
             row.label:SetText(entry.label)
@@ -293,6 +345,45 @@ function Window.Close()
     if panel then panel:Hide() end
 end
 
+local function section(key, left, top, width, height)
+    local block = CreateFrame("Frame", nil, panel)
+    ns.Widgets.Layer(block, panel)
+    block:SetPoint("TOPLEFT", left, -top)
+    block:SetSize(width, height)
+    block.titleKey = key
+    block.title = text(block, "GameFontNormal", T(key), 0, 0)
+    local line = block:CreateTexture(nil, "BACKGROUND")
+    line:SetTexture("Interface\\Buttons\\WHITE8X8")
+    line:SetVertexColor(0.5, 0.43, 0.3, 0.5)
+    line:SetPoint("TOPLEFT", 0, -23)
+    line:SetSize(width, 1)
+    sections[#sections + 1] = block
+    return block
+end
+
+local function offsetSlider(parent, axis, top)
+    local slider = ns.Widgets.Slider(parent, LEFT_WIDTH - 24)
+    slider:SetPoint("TOPLEFT", 12, -top)
+    slider.axis = axis
+    slider.label = text(parent, "GameFontHighlight", "", 0, -(top - 22))
+    slider:SetValue(axis == "X" and ns.Settings.GetPopupOffsetX() or ns.Settings.GetPopupOffsetY())
+    slider:SetScript("OnValueChanged", function(self, value)
+        local integer = math.floor(value + 0.5)
+        if self:GetValue() ~= integer then
+            self:SetValue(integer)
+            return
+        end
+        local current = axis == "X" and ns.Settings.GetPopupOffsetX() or ns.Settings.GetPopupOffsetY()
+        if integer == current then return end
+        if axis == "X" then
+            ns.App.SetPopup(nil, integer, nil)
+        else
+            ns.App.SetPopup(nil, nil, integer)
+        end
+    end)
+    offsets[#offsets + 1] = slider
+end
+
 function Window.Create()
     panel = CreateFrame("Frame", "CompactAddonButtonsWindow", UIParent, "BackdropTemplate")
     panel:Hide()
@@ -321,8 +412,9 @@ function Window.Create()
     previewEmpty:SetPoint("CENTER", preview, "CENTER", 0, 0)
 
     header = CreateFrame("Frame", nil, panel)
+    ns.Widgets.Layer(header, panel)
     header:SetPoint("TOPLEFT", 0, 0)
-    header:SetPoint("TOPRIGHT", 0, 0)
+    header:SetPoint("TOPRIGHT", -40, 0)
     header:SetHeight(42)
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
@@ -333,14 +425,25 @@ function Window.Create()
     end)
     title = text(header, "GameFontNormalLarge", T("TITLE"), 16, -14)
     close = CreateFrame("Button", nil, panel, "UIPanelCloseButton")
+    ns.Widgets.Layer(close, header)
     close:SetPoint("TOPRIGHT", -2, -2)
     close:SetScript("OnClick", function() panel:Hide() end)
 
-    languageLabel = text(panel, "GameFontNormal", T("LANGUAGE"), 16, -49)
-    languageLabel:SetWidth(88)
-    languageDropdown = CreateFrame("DropdownButton", "CompactAddonButtonsLanguage", panel, "WowStyle1DropdownTemplate")
-    languageDropdown:SetPoint("TOPLEFT", 108, -40)
-    languageDropdown:SetWidth(260)
+    local general = section("SECTION_GENERAL", 24, 58, LEFT_WIDTH, 144)
+    local position = section("SECTION_POSITION", 24, 226, LEFT_WIDTH, 228)
+    local buttons = section("SECTION_BUTTONS", 372, 58, RIGHT_WIDTH, HEIGHT - 106)
+    local divider = buttons:CreateTexture(nil, "BACKGROUND")
+    divider:SetTexture("Interface\\Buttons\\WHITE8X8")
+    divider:SetVertexColor(0.5, 0.43, 0.3, 0.5)
+    divider:SetPoint("TOPLEFT", panel, "TOPLEFT", 350, -58)
+    divider:SetSize(1, HEIGHT - 106)
+
+    languageLabel = text(general, "GameFontHighlight", T("LANGUAGE"), 0, -36)
+    languageDropdown =
+        CreateFrame("DropdownButton", "CompactAddonButtonsLanguage", general, "WowStyle1DropdownTemplate")
+    ns.Widgets.Layer(languageDropdown, general)
+    languageDropdown:SetPoint("TOPLEFT", 0, -54)
+    languageDropdown:SetWidth(LEFT_WIDTH)
     languageDropdown:SetupMenu(function(_, root)
         local function selected(value) return ns.Settings.GetLanguage() == value end
         local function choose(value) ns.App.SetLanguage(value) end
@@ -354,11 +457,11 @@ function Window.Create()
         end
     end)
 
-    columnsLabel = text(panel, "GameFontNormal", T("BUTTONS_PER_ROW"), 16, -87)
-    columnsLabel:SetWidth(160)
-    columnsDropdown = CreateFrame("DropdownButton", "CompactAddonButtonsColumns", panel, "WowStyle1DropdownTemplate")
-    columnsDropdown:SetPoint("TOPLEFT", 180, -78)
-    columnsDropdown:SetWidth(188)
+    columnsLabel = text(general, "GameFontHighlight", T("BUTTONS_PER_ROW"), 0, -92)
+    columnsDropdown = CreateFrame("DropdownButton", "CompactAddonButtonsColumns", general, "WowStyle1DropdownTemplate")
+    ns.Widgets.Layer(columnsDropdown, general)
+    columnsDropdown:SetPoint("TOPLEFT", 0, -110)
+    columnsDropdown:SetWidth(LEFT_WIDTH)
     columnsDropdown:SetupMenu(function(_, root)
         local function selected(value) return ns.Settings.GetColumns() == value end
         local function choose(value) ns.App.SetColumns(value) end
@@ -367,59 +470,21 @@ function Window.Create()
         end
     end)
 
-    manualCheck = CreateFrame("CheckButton", "CompactAddonButtonsPopupManual", panel, "UICheckButtonTemplate")
+    manualCheck = CreateFrame("CheckButton", "CompactAddonButtonsPopupManual", position, "UICheckButtonTemplate")
+    ns.Widgets.Layer(manualCheck, position)
     manualCheck:SetSize(26, 26)
-    manualCheck:SetPoint("TOPLEFT", 12, -114)
+    manualCheck:SetPoint("TOPLEFT", 0, -36)
     manualCheck:SetChecked(ns.Settings.GetPopupManual())
     manualCheck:SetScript("OnClick", function(self) ns.App.SetPopupManual(self:GetChecked()) end)
-    manualLabel = text(panel, "GameFontNormal", T("POPUP_MANUAL"), 40, -120)
-    manualLabel:SetWidth(320)
-    anchorLabel = text(panel, "GameFontNormal", T("POPUP_ANCHOR"), 16, -152)
-    anchorLabel:SetWidth(88)
-    anchorDropdown = CreateFrame("DropdownButton", "CompactAddonButtonsPopupAnchor", panel, "WowStyle1DropdownTemplate")
-    anchorDropdown:SetPoint("TOPLEFT", 108, -143)
-    anchorDropdown:SetWidth(120)
-    anchorDropdown:SetupMenu(function(_, root)
-        local function selected(value) return ns.Settings.GetPopupAnchor() == value end
-        local function choose(value) ns.App.SetPopup(value, nil) end
-        for _, anchor in ipairs(ns.Settings.POPUP_ANCHORS) do
-            root:CreateRadio(T("ANCHOR_" .. anchor), selected, choose, anchor)
-        end
-    end)
-    offsetLabel = text(panel, "GameFontNormal", T("POPUP_OFFSET"), 236, -152)
-    offsetLabel:SetWidth(70)
-    offsetBox = CreateFrame("EditBox", "CompactAddonButtonsPopupOffset", panel, "InputBoxTemplate")
-    offsetBox:SetSize(52, 22)
-    offsetBox:SetPoint("TOPLEFT", 310, -148)
-    offsetBox:SetAutoFocus(false)
-    offsetBox:SetMaxLetters(3)
-    offsetBox:SetText(tostring(ns.Settings.GetPopupOffset()))
-    local committing = false
-    local function commitOffset(self)
-        if committing then return end
-        committing = true
-        local value = tonumber(self:GetText())
-        if not ns.App.SetPopup(nil, value) then self:SetText(tostring(ns.Settings.GetPopupOffset())) end
-        self:ClearFocus()
-        committing = false
-    end
-    offsetBox:SetScript("OnEnterPressed", commitOffset)
-    offsetBox:SetScript("OnEditFocusLost", commitOffset)
-    offsetBox:SetScript("OnEscapePressed", function(self)
-        self:SetText(tostring(ns.Settings.GetPopupOffset()))
-        self:ClearFocus()
-    end)
+    manualLabel = text(position, "GameFontHighlight", T("POPUP_MANUAL"), 30, -42)
+    manualLabel:SetWidth(LEFT_WIDTH - 30)
+    offsetSlider(position, "X", 100)
+    offsetSlider(position, "Y", 170)
 
-    modeButton = smallButton(panel, T("SETTINGS"), 108)
-    modeButton:SetPoint("TOPRIGHT", -16, -190)
-    modeButton:SetScript("OnClick", function() setMode(not settingsMode) end)
-    scan = smallButton(panel, T("SCAN"), 84)
-    scan:SetPoint("BOTTOMRIGHT", -14, 12)
-    scan:SetScript("OnClick", function() ns.App.Scan() end)
-
-    search = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
-    search:SetSize(190, 22)
-    search:SetPoint("TOPLEFT", 20, -190)
+    search = CreateFrame("EditBox", nil, buttons, "InputBoxTemplate")
+    ns.Widgets.Layer(search, buttons)
+    search:SetSize(RIGHT_WIDTH - 20, 22)
+    search:SetPoint("TOPLEFT", 8, -58)
     search:SetAutoFocus(false)
     search:SetMaxLetters(100)
     search:SetScript("OnEscapePressed", function(self)
@@ -447,17 +512,19 @@ function Window.Create()
     gridContent:SetFrameLevel(panel:GetFrameLevel() + 1)
     gridContent:SetPoint("TOPLEFT", PADDING, -PADDING)
     gridContent:Hide()
-    scroll = CreateFrame("ScrollFrame", "CompactAddonButtonsScroll", panel, "UIPanelScrollFrameTemplate")
+    scroll = CreateFrame("ScrollFrame", "CompactAddonButtonsScroll", buttons, "UIPanelScrollFrameTemplate")
+    ns.Widgets.Layer(scroll, buttons)
     scroll:SetPoint("TOPLEFT", 16, -228)
     scroll:SetPoint("BOTTOMRIGHT", -30, 52)
     content = CreateFrame("Frame", nil, scroll)
+    ns.Widgets.Layer(content, scroll)
     content:SetSize(ns.Settings.GetColumns() * CELL, 1)
     scroll:SetScrollChild(content)
     empty = text(panel, "GameFontDisable", T("EMPTY"), 24, -130)
     empty:SetWidth(330)
     empty:SetJustifyH("CENTER")
-    footer = text(panel, "GameFontDisableSmall", T("HINT"), 16, -(HEIGHT - 48))
-    footer:SetWidth(340)
+    footer = text(buttons, "GameFontDisableSmall", T("HINT"), 0, -32)
+    footer:SetWidth(RIGHT_WIDTH)
     footer:SetJustifyH("LEFT")
 end
 
@@ -467,27 +534,30 @@ function Window.RefreshTexts()
     local locale, revision = ns.Localization.GetLocale(), ns.Localization.GetRevision()
     local preference, columns = ns.Settings.GetLanguage(), ns.Settings.GetColumns()
     local manual = ns.Settings.GetPopupManual()
-    local anchor, offset = ns.Settings.GetPopupAnchor(), ns.Settings.GetPopupOffset()
     local changed = locale ~= textLocale or revision ~= textRevision
     if changed then
         title:SetText(T("TITLE"))
         empty:SetText(T("EMPTY"))
         previewEmpty:SetText(T("EMPTY"))
         search.hint:SetText(T("SEARCH"))
-        scan:SetText(T("SCAN"))
         languageLabel:SetText(T("LANGUAGE"))
         columnsLabel:SetText(T("BUTTONS_PER_ROW"))
         manualLabel:SetText(T("POPUP_MANUAL"))
-        anchorLabel:SetText(T("POPUP_ANCHOR"))
-        offsetLabel:SetText(T("POPUP_OFFSET"))
+        for _, block in ipairs(sections) do
+            block.title:SetText(T(block.titleKey))
+        end
     end
     if changed or preference ~= menuPreference then languageDropdown:GenerateMenu() end
     if changed or columns ~= menuColumns then columnsDropdown:GenerateMenu() end
-    if changed or anchor ~= menuPopupAnchor then anchorDropdown:GenerateMenu() end
     if manualCheck:GetChecked() ~= manual then manualCheck:SetChecked(manual) end
-    anchorDropdown:SetEnabled(manual)
-    offsetBox:SetEnabled(manual)
-    if tonumber(offsetBox:GetText()) ~= offset then offsetBox:SetText(tostring(offset)) end
+    for _, slider in ipairs(offsets) do
+        local value = slider.axis == "X" and ns.Settings.GetPopupOffsetX() or ns.Settings.GetPopupOffsetY()
+        if slider:GetValue() ~= value then slider:SetValue(value) end
+        if slider:IsEnabled() ~= manual then
+            slider:SetEnabled(manual)
+            slider.label:SetTextColor(manual and 0.95 or 0.5, manual and 0.95 or 0.5, manual and 0.95 or 0.5)
+        end
+        writeText(slider.label, T("POPUP_OFFSET_" .. slider.axis) .. ": " .. tostring(value))
+    end
     textLocale, textRevision, menuPreference, menuColumns = locale, revision, preference, columns
-    menuPopupAnchor = anchor
 end

@@ -2,18 +2,24 @@ local _, ns = ...
 local Settings = {}
 ns.Settings = Settings
 Settings.MIN_COLUMNS, Settings.MAX_COLUMNS = 1, 12
-Settings.MIN_POPUP_OFFSET, Settings.MAX_POPUP_OFFSET = 0, 200
+Settings.MIN_POPUP_OFFSET, Settings.MAX_POPUP_OFFSET = -255, 256
 Settings.POPUP_ANCHORS = {
     "LEFT",
     "RIGHT",
     "TOP",
     "BOTTOM",
-    "TOPLEFT",
-    "TOPRIGHT",
-    "BOTTOMLEFT",
-    "BOTTOMRIGHT",
 }
 local db
+local legacyDirections = {
+    LEFT = { -1, 0 },
+    RIGHT = { 1, 0 },
+    TOP = { 0, 1 },
+    BOTTOM = { 0, -1 },
+    TOPLEFT = { -1, 1 },
+    TOPRIGHT = { 1, 1 },
+    BOTTOMLEFT = { -1, -1 },
+    BOTTOMRIGHT = { 1, -1 },
+}
 local popupAnchors = {}
 for _, name in ipairs(Settings.POPUP_ANCHORS) do
     popupAnchors[name] = true
@@ -66,11 +72,22 @@ function Settings.Initialize()
     if not validPosition(db.position) then db.position = { "CENTER", "CENTER", 0, 0 } end
     if type(db.language) ~= "string" then db.language = "auto" end
     if not validColumns(db.columns) then db.columns = 6 end
-    -- Automatic placement follows the launcher. Manual side and offset apply only when enabled.
+    -- Preserve old placement data while migrating the one-axis gap to independent offsets.
     if db.popupManual ~= true then db.popupManual = false end
-    if not popupAnchors[db.popupAnchor] then db.popupAnchor = "LEFT" end
-    if not validOffset(db.popupOffset) then db.popupOffset = 6 end
-    db.version = 2
+    local oldDirection = legacyDirections[db.popupAnchor] or legacyDirections.LEFT
+    if not popupAnchors[db.popupAnchor] then db.popupAnchor = oldDirection[1] == 1 and "RIGHT" or "LEFT" end
+    local direction = legacyDirections[db.popupAnchor]
+    local gap = finite(db.popupOffset)
+            and db.popupOffset >= 0
+            and db.popupOffset <= 200
+            and db.popupOffset == math.floor(db.popupOffset)
+            and db.popupOffset
+        or 6
+    if db.popupOffsetX == nil then db.popupOffsetX = oldDirection[1] * gap - direction[1] * 6 end
+    if db.popupOffsetY == nil then db.popupOffsetY = oldDirection[2] * gap - direction[2] * 6 end
+    if not validOffset(db.popupOffsetX) then db.popupOffsetX = 0 end
+    if not validOffset(db.popupOffsetY) then db.popupOffsetY = 0 end
+    db.version = 3
 end
 
 function Settings.GetAngle() return db.angle end
@@ -102,12 +119,15 @@ function Settings.SetPopupManual(enabled)
     return true
 end
 function Settings.GetPopupAnchor() return db.popupAnchor end
-function Settings.GetPopupOffset() return db.popupOffset end
-function Settings.SetPopup(anchor, offset)
+function Settings.GetPopupOffsetX() return db.popupOffsetX end
+function Settings.GetPopupOffsetY() return db.popupOffsetY end
+function Settings.SetPopup(anchor, x, y)
     if anchor ~= nil and not popupAnchors[anchor] then return false end
-    if offset ~= nil and not validOffset(offset) then return false end
-    if anchor == nil and offset == nil then return false end
+    if x ~= nil and not validOffset(x) then return false end
+    if y ~= nil and not validOffset(y) then return false end
+    if anchor == nil and x == nil and y == nil then return false end
     if anchor ~= nil then db.popupAnchor = anchor end
-    if offset ~= nil then db.popupOffset = offset end
+    if x ~= nil then db.popupOffsetX = x end
+    if y ~= nil then db.popupOffsetY = y end
     return true
 end
