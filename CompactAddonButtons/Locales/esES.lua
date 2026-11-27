@@ -13,7 +13,6 @@ ns.Localization.Register("esES", "Español", {
     DRAG = "Arrastra para mover el botón por el minimapa",
     HIDDEN = "oculto por su propio addon",
     SEARCH = "Buscar un botón...",
-    SCAN = "Actualizar",
     LOCKED = "No se puede abrir la ventana durante el combate.",
     LANGUAGE = "Idioma",
     BUTTONS_PER_ROW = "Botones por fila",

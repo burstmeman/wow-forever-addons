@@ -111,10 +111,10 @@ assert(ns.App.SetColumns(7) and CompactAddonButtonsColumns.selectedText == "7")
 assert(stats.menus == builds + 1)
 ns.App.SetColumns(6)
 builds = stats.menus
-local label = ns.Localization.Text("SCAN")
-assert(ns.Localization.Register("enUS", "English", { SCAN = "Updated scan label" }))
+local label = ns.Localization.Text("BUTTONS_PER_ROW")
+assert(ns.Localization.Register("enUS", "English", { BUTTONS_PER_ROW = "Updated column label" }))
 assert(stats.menus == builds + 2, "translation registration must invalidate labels and every menu")
-ns.Localization.Register("enUS", "English", { SCAN = label })
+ns.Localization.Register("enUS", "English", { BUTTONS_PER_ROW = label })
 
 -- Discovery remains active, while each genuinely new entry is hooked/sorted once.
 local beforeSort, beforeHooks = sorts, stats.hooks

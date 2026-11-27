@@ -13,7 +13,6 @@ ns.Localization.Register("deDE", "Deutsch", {
     DRAG = "Ziehen, um die Schaltfläche an der Minikarte zu verschieben",
     HIDDEN = "vom zugehörigen Addon ausgeblendet",
     SEARCH = "Schaltfläche suchen...",
-    SCAN = "Aktualisieren",
     LOCKED = "Das Fenster kann im Kampf nicht geöffnet werden.",
     LANGUAGE = "Sprache",
     BUTTONS_PER_ROW = "Buttons pro Zeile",

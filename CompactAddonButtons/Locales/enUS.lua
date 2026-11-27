@@ -13,7 +13,6 @@ ns.Localization.Register("enUS", "English", {
     DRAG = "Drag to move around the minimap",
     HIDDEN = "hidden by its addon",
     SEARCH = "Find a button...",
-    SCAN = "Refresh",
     LOCKED = "The window cannot be opened in combat.",
     LANGUAGE = "Language",
     BUTTONS_PER_ROW = "Buttons per row",

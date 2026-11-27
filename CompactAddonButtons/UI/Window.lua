@@ -7,7 +7,7 @@ local floor, max = math.floor, math.max
 local rows, slots = {}, {}
 local panel, content, gridContent, scroll, empty, footer, search, modeButton
 local preview, previewEmpty
-local header, close, scan, title, languageLabel, languageDropdown
+local header, close, title, languageLabel, languageDropdown
 local columnsLabel, columnsDropdown
 local manualCheck, manualLabel
 local sections, offsets = {}, {}
@@ -152,7 +152,6 @@ local function layout(gridCount)
     close:SetShown(settingsMode)
     search:SetShown(settingsMode)
     modeButton:SetShown(settingsMode)
-    scan:SetShown(settingsMode)
     footer:SetShown(settingsMode)
     languageLabel:SetShown(settingsMode)
     languageDropdown:SetShown(settingsMode)
@@ -487,9 +486,6 @@ function Window.Create()
     modeButton = smallButton(panel, T("SETTINGS"), 108)
     modeButton:SetPoint("BOTTOMLEFT", 16, 12)
     modeButton:SetScript("OnClick", function() setMode(not settingsMode) end)
-    scan = smallButton(panel, T("SCAN"), 96)
-    scan:SetPoint("BOTTOMLEFT", 136, 12)
-    scan:SetScript("OnClick", function() ns.App.Scan() end)
 
     search = CreateFrame("EditBox", nil, buttons, "InputBoxTemplate")
     ns.Widgets.Layer(search, buttons)
@@ -550,7 +546,6 @@ function Window.RefreshTexts()
         empty:SetText(T("EMPTY"))
         previewEmpty:SetText(T("EMPTY"))
         search.hint:SetText(T("SEARCH"))
-        scan:SetText(T("SCAN"))
         languageLabel:SetText(T("LANGUAGE"))
         columnsLabel:SetText(T("BUTTONS_PER_ROW"))
         manualLabel:SetText(T("POPUP_MANUAL"))

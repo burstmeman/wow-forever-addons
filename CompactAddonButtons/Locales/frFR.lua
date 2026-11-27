@@ -13,7 +13,6 @@ ns.Localization.Register("frFR", "Français", {
     DRAG = "Faites glisser le bouton autour de la minicarte",
     HIDDEN = "masqué par son propre addon",
     SEARCH = "Rechercher un bouton...",
-    SCAN = "Actualiser",
     LOCKED = "Impossible d'ouvrir la fenêtre en combat.",
     LANGUAGE = "Langue",
     BUTTONS_PER_ROW = "Boutons par ligne",
