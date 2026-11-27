@@ -1,9 +1,9 @@
 {
   "addon": "CompactAddonButtons",
-  "previous_version": "1.2.11",
-  "version": "1.3.0",
-  "bump": "minor",
-  "tag": "CompactAddonButtons/v1.3.0",
-  "base_sha": "bfb6ad831d41035b603c8ef2a8ee52ae6a323085",
-  "notes": "Add position settings with a real-time preview"
+  "previous_version": "1.3.0",
+  "version": "1.3.1",
+  "bump": "patch",
+  "tag": "CompactAddonButtons/v1.3.1",
+  "base_sha": "a7881fc8c0dbdecc4238d26797158dae9510218b",
+  "notes": "Small UX updates: improved settings layout, a larger button list with addon icons, simpler position controls, and a more transparent background. Removed redundant buttons and fixed the settings close button."
 }
