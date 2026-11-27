@@ -2,8 +2,6 @@ local _, ns = ...
 ns.Localization.Register("deDE", "Deutsch", {
     TITLE = "CompactAddonButtons Settings",
     MINIMAP_TITLE = "Kompakte Addon-Schaltflächen",
-    SETTINGS = "Ausnahmen",
-    BACK = "Zurück",
     EMPTY = "Noch keine Addon-Schaltflächen gefunden.",
     HINT = "Klickfunktionen und Tooltips bleiben erhalten.",
     EXCEPTIONS = "Markierte Schaltflächen bleiben an der Minikarte.",

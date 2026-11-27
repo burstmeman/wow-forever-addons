@@ -283,6 +283,27 @@ for _, frame in ipairs(frames) do
     if frame.kind == "EditBox" and frame.hint then search = frame end
     if frame.parent == ns.Window.GetFrame() and frame.scripts.OnDragStop then header = frame end
 end
+local closeButton
+for _, frame in ipairs(frames) do
+    local point = frame:GetPoint()
+    if frame.kind == "Button" and frame.parent == ns.Window.GetFrame() and point == "TOPRIGHT" then
+        closeButton = frame
+    end
+end
+assert(closeButton and closeButton:IsVisible() and closeButton:GetFrameLevel() > header:GetFrameLevel())
+local _, headerRightInset = header:GetPoint(2)
+assert(headerRightInset == -40, "dragging the title must not claim the close-button area")
+local settingsPreview = ns.Window.GetPopupFrame()
+closeButton.scripts.OnClick(closeButton)
+assert(
+    not ns.Window.GetFrame():IsShown() and not settingsPreview:IsVisible(),
+    "close button closes settings and preview"
+)
+ns.App.Toggle(true)
+assert(
+    closeButton:IsVisible() and ns.Window.GetPopupFrame():IsVisible(),
+    "reopening restores the close button and preview"
+)
 search:SetText("no-such-addon")
 search.scripts.OnTextChanged(search)
 assert(

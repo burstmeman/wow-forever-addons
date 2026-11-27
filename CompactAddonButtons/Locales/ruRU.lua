@@ -2,8 +2,6 @@ local _, ns = ...
 ns.Localization.Register("ruRU", "Русский", {
     TITLE = "CompactAddonButtons Settings",
     MINIMAP_TITLE = "Компактные кнопки аддонов",
-    SETTINGS = "Исключения",
-    BACK = "Назад",
     EMPTY = "Кнопки аддонов пока не найдены.",
     HINT = "Обычные клики и подсказки кнопок сохранены.",
     EXCEPTIONS = "Отмеченные кнопки останутся на миникарте.",

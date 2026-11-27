@@ -2,10 +2,10 @@ local _, ns = ...
 local Window = {}
 ns.Window = Window
 local T = ns.Localization.Text
-local text, skin, smallButton = ns.Widgets.Text, ns.Widgets.Skin, ns.Widgets.Button
+local text, skin = ns.Widgets.Text, ns.Widgets.Skin
 local floor, max = math.floor, math.max
 local rows, slots = {}, {}
-local panel, content, gridContent, scroll, empty, footer, search, modeButton
+local panel, content, gridContent, scroll, empty, footer, search
 local preview, previewEmpty
 local header, close, title, languageLabel, languageDropdown
 local columnsLabel, columnsDropdown
@@ -147,11 +147,10 @@ function Window.PositionPopup()
 end
 
 local function layout(gridCount)
-    panel:SetBackdropColor(0.055, 0.05, 0.045, settingsMode and 0.97 or 0.88)
+    panel:SetBackdropColor(0.055, 0.05, 0.045, settingsMode and 0.80 or 0.88)
     header:SetShown(settingsMode)
     close:SetShown(settingsMode)
     search:SetShown(settingsMode)
-    modeButton:SetShown(settingsMode)
     footer:SetShown(settingsMode)
     languageLabel:SetShown(settingsMode)
     languageDropdown:SetShown(settingsMode)
@@ -206,7 +205,6 @@ local function writeText(widget, value)
 end
 
 local function updateChrome()
-    writeText(modeButton, settingsMode and T("BACK") or T("SETTINGS"))
     writeText(footer, ns.App.IsPending() and T("COMBAT") or (settingsMode and T("EXCEPTIONS") or T("HINT")))
 end
 
@@ -416,7 +414,7 @@ function Window.Create()
     header = CreateFrame("Frame", nil, panel)
     ns.Widgets.Layer(header, panel)
     header:SetPoint("TOPLEFT", 0, 0)
-    header:SetPoint("TOPRIGHT", 0, 0)
+    header:SetPoint("TOPRIGHT", -40, 0)
     header:SetHeight(42)
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
@@ -427,7 +425,7 @@ function Window.Create()
     end)
     title = text(header, "GameFontNormalLarge", T("TITLE"), 16, -14)
     close = CreateFrame("Button", nil, panel, "UIPanelCloseButton")
-    ns.Widgets.Layer(close, panel)
+    ns.Widgets.Layer(close, header)
     close:SetPoint("TOPRIGHT", -2, -2)
     close:SetScript("OnClick", function() panel:Hide() end)
 
@@ -482,10 +480,6 @@ function Window.Create()
     manualLabel:SetWidth(LEFT_WIDTH - 30)
     offsetSlider(position, "X", 100)
     offsetSlider(position, "Y", 170)
-
-    modeButton = smallButton(panel, T("SETTINGS"), 108)
-    modeButton:SetPoint("BOTTOMLEFT", 16, 12)
-    modeButton:SetScript("OnClick", function() setMode(not settingsMode) end)
 
     search = CreateFrame("EditBox", nil, buttons, "InputBoxTemplate")
     ns.Widgets.Layer(search, buttons)
