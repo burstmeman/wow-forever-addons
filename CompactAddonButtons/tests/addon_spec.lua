@@ -9,6 +9,9 @@ local function button(name, parent)
 end
 local clicked, hovered, dragged = 0, 0, 0
 local alpha = button("LibDBIcon10_Alpha")
+alpha.icon = alpha:CreateTexture()
+alpha.icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
+alpha.icon:SetTexCoord(0.1, 0.2, 0.1, 0.8, 0.9, 0.2, 0.9, 0.8)
 local hidden = button("LibDBIcon10_Hidden")
 hidden:Hide()
 local beta = button("BetaMinimapButton", MinimapBackdrop)
@@ -182,7 +185,7 @@ ns.App.Toggle(true)
 assert(ns.Window.GetFrame():IsShown() and slot:IsShown() and ns.Window.GetPopupFrame():IsVisible())
 assert(TestUI.MouseTarget(alpha) == alpha, "preview backdrop must not intercept button clicks")
 assert(
-    ns.Window.GetFrame():GetWidth() == 448 and ns.Window.GetFrame():GetHeight() == 720,
+    ns.Window.GetFrame():GetWidth() == 780 and ns.Window.GetFrame():GetHeight() == 540,
     "settings keep a readable layout"
 )
 assert(select(2, ns.Window.GetFrame():GetPoint()) == UIParent, "settings use their saved independent position")
@@ -342,21 +345,52 @@ for _, entry in ipairs(ns.Buttons.All()) do
     if entry.collected and entry.button:IsShown() then visible[#visible + 1] = entry end
 end
 ns.App.Toggle(true)
+local iconRow
+for _, frame in ipairs(frames) do
+    if frame.entry and frame.entry.button == alpha and frame.icon then iconRow = frame end
+end
+assert(iconRow and iconRow.icon ~= alpha.icon, "settings copy the icon without taking ownership")
+assert(iconRow.icon:GetTexture() == alpha.icon:GetTexture())
+assert(table.concat({ iconRow.icon:GetTexCoord() }, ",") == table.concat({ alpha.icon:GetTexCoord() }, ","))
+assert(alpha.icon:GetParent() == alpha, "source icon remains attached to its button")
+assert(TestUI.MouseTarget(iconRow) == iconRow, "list rows receive input above the window background")
+alpha.icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_02")
+ns.Window.Refresh()
+assert(iconRow.icon:GetTexture() == alpha.icon:GetTexture(), "icon changes update without a layout change")
+local originalIcon = alpha.icon
+alpha.icon, alpha.Icon = nil, originalIcon
+ns.Window.Refresh()
+assert(iconRow.icon:GetTexture() == originalIcon:GetTexture(), "capitalized icon field works without lowercase icon")
+alpha.Icon, alpha.texture = nil, originalIcon
+ns.Window.Refresh()
+assert(iconRow.icon:GetTexture() == originalIcon:GetTexture(), "normal texture works without icon fields")
+alpha.texture, alpha.regions = nil, { originalIcon }
+ns.Window.Refresh()
+assert(iconRow.icon:GetTexture() == originalIcon:GetTexture(), "custom texture regions are supported")
+alpha.regions = {}
+ns.Window.Refresh()
+assert(iconRow.icon:GetTexture() == "Interface\\Icons\\INV_Misc_QuestionMark", "iconless buttons have a placeholder")
+alpha.icon = originalIcon
+ns.Window.Refresh()
+local generalBlock = CompactAddonButtonsLanguage:GetParent()
+local buttonsBlock = popupScroll:GetParent()
+local _, listX = buttonsBlock:GetPoint()
+local _, controlsX = generalBlock:GetPoint()
+assert(listX > controlsX + generalBlock:GetWidth(), "button list sits to the right of the controls")
+assert(buttonsBlock:GetHeight() >= 400, "settings give the button list most of the window height")
 local manualCheck = CompactAddonButtonsPopupManual
-local anchorDropdown = CompactAddonButtonsPopupAnchor
-assert(manualCheck:IsShown() and not manualCheck:GetChecked() and not anchorDropdown:IsEnabled())
-assert(anchorDropdown:IsShown() and #anchorDropdown.choices == 4)
-assert(anchorDropdown.selectedText == ns.Localization.Text("ANCHOR_LEFT"))
+assert(CompactAddonButtonsPopupAnchor == nil, "side selector is no longer created")
+assert(manualCheck:IsShown() and not manualCheck:GetChecked())
 manualCheck:SetChecked(true)
 manualCheck.scripts.OnClick(manualCheck)
-assert(ns.Settings.GetPopupManual() and anchorDropdown:IsEnabled())
+assert(ns.Settings.GetPopupManual())
 local sliders = {}
 for _, frame in ipairs(frames) do
     if frame.kind == "Slider" then sliders[frame.axis] = frame end
 end
-assert(sliders.X and sliders.Y and sliders.X:GetParent() == anchorDropdown:GetParent())
+assert(sliders.X and sliders.Y and sliders.X:GetParent() == manualCheck:GetParent())
 assert(CompactAddonButtonsLanguage:GetParent() == CompactAddonButtonsColumns:GetParent())
-assert(CompactAddonButtonsLanguage:GetParent() ~= anchorDropdown:GetParent(), "settings use explicit sections")
+assert(CompactAddonButtonsLanguage:GetParent() ~= manualCheck:GetParent(), "settings use explicit sections")
 for _, slider in pairs(sliders) do
     local minimum, maximum = slider:GetMinMaxValues()
     assert(minimum == -255 and maximum == 256 and slider.step == 1 and slider:IsEnabled())
@@ -364,12 +398,8 @@ for _, slider in pairs(sliders) do
     assert(TestUI.MouseTarget(slider) == slider, "settings backgrounds must not cover slider input")
     assert(slider.label:GetJustifyH() == "LEFT")
 end
-local above
-for _, choice in ipairs(anchorDropdown.choices) do
-    if choice.value == "TOP" then above = choice end
-end
-above.choose(above.value)
-assert(ns.Settings.GetPopupAnchor() == "TOP" and anchorDropdown.selectedText == ns.Localization.Text("ANCHOR_TOP"))
+-- Existing saved sides remain valid even though the selector is gone.
+assert(ns.App.SetPopup("TOP", nil, nil))
 sliders.X:SetValue(-255)
 sliders.Y:SetValue(256)
 assert(ns.Settings.GetPopupOffsetX() == -255 and ns.Settings.GetPopupOffsetY() == 256)
@@ -413,7 +443,7 @@ for value = 1, 12 do
     local liveRows = math.ceil(#visible / value)
     assert(ns.Window.GetPopupFrame():GetWidth() == value * 32 + 6)
     assert(ns.Window.GetPopupFrame():GetHeight() == liveRows * 32 + 6)
-    assert(ns.Window.GetFrame():GetWidth() == 448, "live preview must not resize configuration")
+    assert(ns.Window.GetFrame():GetWidth() == 780, "live preview must not resize configuration")
     ns.App.Toggle(false)
     assert(not columnsDropdown:IsShown(), "grid controls belong only in settings")
     local rowCount = math.ceil(#visible / value)

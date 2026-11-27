@@ -9,13 +9,14 @@ local panel, content, gridContent, scroll, empty, footer, search, modeButton
 local preview, previewEmpty
 local header, close, scan, title, languageLabel, languageDropdown
 local columnsLabel, columnsDropdown
-local manualCheck, manualLabel, anchorLabel, anchorDropdown
+local manualCheck, manualLabel
 local sections, offsets = {}, {}
 local settingsMode = false
 local query = ""
-local textLocale, textRevision, menuPreference, menuColumns, menuPopupAnchor
+local textLocale, textRevision, menuPreference, menuColumns
 local lastLayout, popupManual, popupAnchor, popupOffsetX, popupOffsetY, popupX, popupY, popupScale
-local WIDTH, HEIGHT, CELL = 448, 720, 32
+local WIDTH, HEIGHT, CELL = 780, 540, 32
+local LEFT_WIDTH, RIGHT_WIDTH = 308, 384
 local PADDING = 3
 
 local function savePosition()
@@ -28,10 +29,13 @@ local function rowAt(index)
     local row = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
     ns.Widgets.Layer(row, content)
     row:SetSize(26, 26)
-    row.label = text(row, "GameFontHighlight", "", 30, -5)
-    row.label:SetWidth(WIDTH - 106)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(22, 22)
+    row.icon:SetPoint("TOPLEFT", 30, -2)
+    row.label = text(row, "GameFontHighlight", "", 60, -5)
+    row.label:SetWidth(RIGHT_WIDTH - 104)
     row.label:SetJustifyH("LEFT")
-    row:SetHitRectInsets(0, -(WIDTH - 106), 0, 0)
+    row:SetHitRectInsets(0, -(RIGHT_WIDTH - 70), 0, 0)
     row:SetScript("OnClick", function(self) ns.App.SetException(self.entry.key, self:GetChecked()) end)
     row:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -43,6 +47,46 @@ local function rowAt(index)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
     rows[index] = row
     return row
+end
+
+-- Copy the image, never reparent a region owned by another addon.
+local function iconRegion(button)
+    local candidates = { button.icon, button.Icon, button.GetNormalTexture and button:GetNormalTexture() }
+    for index = 1, 3 do
+        local candidate = candidates[index]
+        local kind = type(candidate)
+        if kind == "string" or kind == "number" then return candidate end
+        if (kind == "table" or kind == "userdata") and candidate.GetTexture and candidate:GetTexture() then
+            return candidate
+        end
+    end
+    for _, region in ipairs({ button:GetRegions() }) do
+        if region:IsObjectType("Texture") and region:GetTexture() then return region end
+    end
+end
+
+local function refreshRowIcon(row)
+    local source = iconRegion(row.entry.button)
+    local texture, coords
+    if type(source) == "table" or type(source) == "userdata" then
+        texture = source:GetTexture()
+        coords = table.concat({ source:GetTexCoord() }, ",")
+    else
+        texture = source or "Interface\\Icons\\INV_Misc_QuestionMark"
+        coords = "0,1,0,1"
+    end
+    if texture ~= row.iconTexture then
+        row.icon:SetTexture(texture)
+        row.iconTexture = texture
+    end
+    if coords ~= row.iconCoords then
+        if type(source) == "table" or type(source) == "userdata" then
+            row.icon:SetTexCoord(source:GetTexCoord())
+        else
+            row.icon:SetTexCoord(0, 1, 0, 1)
+        end
+        row.iconCoords = coords
+    end
 end
 
 function Window.CreateSlot()
@@ -116,8 +160,6 @@ local function layout(gridCount)
     columnsDropdown:SetShown(settingsMode)
     manualCheck:SetShown(settingsMode)
     manualLabel:SetShown(settingsMode)
-    anchorLabel:SetShown(settingsMode)
-    anchorDropdown:SetShown(settingsMode)
     for _, block in ipairs(sections) do
         block:SetShown(settingsMode)
     end
@@ -149,9 +191,9 @@ local function layout(gridCount)
         panel:SetSize(WIDTH, HEIGHT)
         scroll:SetPoint("TOPLEFT", sections[3], "TOPLEFT", 12, -90)
         scroll:SetPoint("BOTTOMRIGHT", sections[3], "BOTTOMRIGHT", -26, 12)
-        content:SetWidth(WIDTH - 76)
+        content:SetWidth(RIGHT_WIDTH - 38)
         empty:SetPoint("TOPLEFT", sections[3], "TOPLEFT", 12, -112)
-        empty:SetWidth(WIDTH - 76)
+        empty:SetWidth(RIGHT_WIDTH - 38)
     else
         empty:SetPoint("CENTER", panel, "CENTER", 0, 0)
         empty:SetWidth(width - PADDING * 2)
@@ -232,6 +274,11 @@ function Window.Refresh(force)
     local columns = Window.GridMetrics(#grid, ns.Settings.GetColumns())
     local key = layoutKey(visible, grid, columns)
     if not force and key == lastLayout then
+        if settingsMode then
+            for _, row in ipairs(rows) do
+                if row:IsShown() then refreshRowIcon(row) end
+            end
+        end
         updateChrome()
         placePopup(false)
         return
@@ -244,6 +291,7 @@ function Window.Refresh(force)
             count = count + 1
             local row = rowAt(count)
             row.entry = entry
+            refreshRowIcon(row)
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", 0, -(count - 1) * 30)
             row.label:SetText(entry.label)
@@ -300,25 +348,27 @@ function Window.Close()
     if panel then panel:Hide() end
 end
 
-local function section(key, top, height)
-    local block = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+local function section(key, left, top, width, height)
+    local block = CreateFrame("Frame", nil, panel)
     ns.Widgets.Layer(block, panel)
-    block:SetPoint("TOPLEFT", 16, -top)
-    block:SetSize(WIDTH - 32, height)
-    skin(block)
-    block:SetBackdropColor(0.08, 0.075, 0.065, 0.65)
-    block:SetBackdropBorderColor(0.28, 0.24, 0.17, 0.9)
+    block:SetPoint("TOPLEFT", left, -top)
+    block:SetSize(width, height)
     block.titleKey = key
-    block.title = text(block, "GameFontNormal", T(key), 12, -12)
+    block.title = text(block, "GameFontNormal", T(key), 0, 0)
+    local line = block:CreateTexture(nil, "BACKGROUND")
+    line:SetTexture("Interface\\Buttons\\WHITE8X8")
+    line:SetVertexColor(0.5, 0.43, 0.3, 0.5)
+    line:SetPoint("TOPLEFT", 0, -23)
+    line:SetSize(width, 1)
     sections[#sections + 1] = block
     return block
 end
 
 local function offsetSlider(parent, axis, top)
-    local slider = ns.Widgets.Slider(parent, WIDTH - 64)
+    local slider = ns.Widgets.Slider(parent, LEFT_WIDTH - 24)
     slider:SetPoint("TOPLEFT", 12, -top)
     slider.axis = axis
-    slider.label = text(parent, "GameFontHighlight", "", 12, -(top - 22))
+    slider.label = text(parent, "GameFontHighlight", "", 0, -(top - 22))
     slider:SetValue(axis == "X" and ns.Settings.GetPopupOffsetX() or ns.Settings.GetPopupOffsetY())
     slider:SetScript("OnValueChanged", function(self, value)
         local integer = math.floor(value + 0.5)
@@ -382,16 +432,21 @@ function Window.Create()
     close:SetPoint("TOPRIGHT", -2, -2)
     close:SetScript("OnClick", function() panel:Hide() end)
 
-    local general = section("SECTION_GENERAL", 48, 144)
-    local position = section("SECTION_POSITION", 204, 244)
-    local buttons = section("SECTION_BUTTONS", 460, 208)
+    local general = section("SECTION_GENERAL", 24, 58, LEFT_WIDTH, 144)
+    local position = section("SECTION_POSITION", 24, 226, LEFT_WIDTH, 228)
+    local buttons = section("SECTION_BUTTONS", 372, 58, RIGHT_WIDTH, HEIGHT - 106)
+    local divider = buttons:CreateTexture(nil, "BACKGROUND")
+    divider:SetTexture("Interface\\Buttons\\WHITE8X8")
+    divider:SetVertexColor(0.5, 0.43, 0.3, 0.5)
+    divider:SetPoint("TOPLEFT", panel, "TOPLEFT", 350, -58)
+    divider:SetSize(1, HEIGHT - 106)
 
-    languageLabel = text(general, "GameFontHighlight", T("LANGUAGE"), 12, -34)
+    languageLabel = text(general, "GameFontHighlight", T("LANGUAGE"), 0, -36)
     languageDropdown =
         CreateFrame("DropdownButton", "CompactAddonButtonsLanguage", general, "WowStyle1DropdownTemplate")
     ns.Widgets.Layer(languageDropdown, general)
-    languageDropdown:SetPoint("TOPLEFT", 12, -50)
-    languageDropdown:SetWidth(WIDTH - 56)
+    languageDropdown:SetPoint("TOPLEFT", 0, -54)
+    languageDropdown:SetWidth(LEFT_WIDTH)
     languageDropdown:SetupMenu(function(_, root)
         local function selected(value) return ns.Settings.GetLanguage() == value end
         local function choose(value) ns.App.SetLanguage(value) end
@@ -405,11 +460,11 @@ function Window.Create()
         end
     end)
 
-    columnsLabel = text(general, "GameFontHighlight", T("BUTTONS_PER_ROW"), 12, -86)
+    columnsLabel = text(general, "GameFontHighlight", T("BUTTONS_PER_ROW"), 0, -92)
     columnsDropdown = CreateFrame("DropdownButton", "CompactAddonButtonsColumns", general, "WowStyle1DropdownTemplate")
     ns.Widgets.Layer(columnsDropdown, general)
-    columnsDropdown:SetPoint("TOPLEFT", 12, -102)
-    columnsDropdown:SetWidth(WIDTH - 56)
+    columnsDropdown:SetPoint("TOPLEFT", 0, -110)
+    columnsDropdown:SetWidth(LEFT_WIDTH)
     columnsDropdown:SetupMenu(function(_, root)
         local function selected(value) return ns.Settings.GetColumns() == value end
         local function choose(value) ns.App.SetColumns(value) end
@@ -421,26 +476,13 @@ function Window.Create()
     manualCheck = CreateFrame("CheckButton", "CompactAddonButtonsPopupManual", position, "UICheckButtonTemplate")
     ns.Widgets.Layer(manualCheck, position)
     manualCheck:SetSize(26, 26)
-    manualCheck:SetPoint("TOPLEFT", 12, -34)
+    manualCheck:SetPoint("TOPLEFT", 0, -36)
     manualCheck:SetChecked(ns.Settings.GetPopupManual())
     manualCheck:SetScript("OnClick", function(self) ns.App.SetPopupManual(self:GetChecked()) end)
-    manualLabel = text(position, "GameFontHighlight", T("POPUP_MANUAL"), 42, -40)
-    manualLabel:SetWidth(320)
-    anchorLabel = text(position, "GameFontHighlight", T("POPUP_ANCHOR"), 12, -68)
-    anchorDropdown =
-        CreateFrame("DropdownButton", "CompactAddonButtonsPopupAnchor", position, "WowStyle1DropdownTemplate")
-    ns.Widgets.Layer(anchorDropdown, position)
-    anchorDropdown:SetPoint("TOPLEFT", 12, -84)
-    anchorDropdown:SetWidth(WIDTH - 56)
-    anchorDropdown:SetupMenu(function(_, root)
-        local function selected(value) return ns.Settings.GetPopupAnchor() == value end
-        local function choose(value) ns.App.SetPopup(value, nil, nil) end
-        for _, anchor in ipairs(ns.Settings.POPUP_ANCHORS) do
-            root:CreateRadio(T("ANCHOR_" .. anchor), selected, choose, anchor)
-        end
-    end)
-    offsetSlider(position, "X", 144)
-    offsetSlider(position, "Y", 206)
+    manualLabel = text(position, "GameFontHighlight", T("POPUP_MANUAL"), 30, -42)
+    manualLabel:SetWidth(LEFT_WIDTH - 30)
+    offsetSlider(position, "X", 100)
+    offsetSlider(position, "Y", 170)
 
     modeButton = smallButton(panel, T("SETTINGS"), 108)
     modeButton:SetPoint("BOTTOMLEFT", 16, 12)
@@ -451,8 +493,8 @@ function Window.Create()
 
     search = CreateFrame("EditBox", nil, buttons, "InputBoxTemplate")
     ns.Widgets.Layer(search, buttons)
-    search:SetSize(WIDTH - 60, 22)
-    search:SetPoint("TOPLEFT", 16, -58)
+    search:SetSize(RIGHT_WIDTH - 20, 22)
+    search:SetPoint("TOPLEFT", 8, -58)
     search:SetAutoFocus(false)
     search:SetMaxLetters(100)
     search:SetScript("OnEscapePressed", function(self)
@@ -491,8 +533,8 @@ function Window.Create()
     empty = text(panel, "GameFontDisable", T("EMPTY"), 24, -130)
     empty:SetWidth(330)
     empty:SetJustifyH("CENTER")
-    footer = text(buttons, "GameFontDisableSmall", T("HINT"), 12, -32)
-    footer:SetWidth(WIDTH - 56)
+    footer = text(buttons, "GameFontDisableSmall", T("HINT"), 0, -32)
+    footer:SetWidth(RIGHT_WIDTH)
     footer:SetJustifyH("LEFT")
 end
 
@@ -502,7 +544,6 @@ function Window.RefreshTexts()
     local locale, revision = ns.Localization.GetLocale(), ns.Localization.GetRevision()
     local preference, columns = ns.Settings.GetLanguage(), ns.Settings.GetColumns()
     local manual = ns.Settings.GetPopupManual()
-    local anchor = ns.Settings.GetPopupAnchor()
     local changed = locale ~= textLocale or revision ~= textRevision
     if changed then
         title:SetText(T("TITLE"))
@@ -513,16 +554,13 @@ function Window.RefreshTexts()
         languageLabel:SetText(T("LANGUAGE"))
         columnsLabel:SetText(T("BUTTONS_PER_ROW"))
         manualLabel:SetText(T("POPUP_MANUAL"))
-        anchorLabel:SetText(T("POPUP_ANCHOR"))
         for _, block in ipairs(sections) do
             block.title:SetText(T(block.titleKey))
         end
     end
     if changed or preference ~= menuPreference then languageDropdown:GenerateMenu() end
     if changed or columns ~= menuColumns then columnsDropdown:GenerateMenu() end
-    if changed or anchor ~= menuPopupAnchor then anchorDropdown:GenerateMenu() end
     if manualCheck:GetChecked() ~= manual then manualCheck:SetChecked(manual) end
-    anchorDropdown:SetEnabled(manual)
     for _, slider in ipairs(offsets) do
         local value = slider.axis == "X" and ns.Settings.GetPopupOffsetX() or ns.Settings.GetPopupOffsetY()
         if slider:GetValue() ~= value then slider:SetValue(value) end
@@ -533,5 +571,4 @@ function Window.RefreshTexts()
         writeText(slider.label, T("POPUP_OFFSET_" .. slider.axis) .. ": " .. tostring(value))
     end
     textLocale, textRevision, menuPreference, menuColumns = locale, revision, preference, columns
-    menuPopupAnchor = anchor
 end

@@ -1,5 +1,5 @@
 local combat, frames = false, {}
-local stats = { hooks = 0, menus = 0, choices = 0, textWrites = 0, pointWrites = 0 }
+local stats = { hooks = 0, menus = 0, choices = 0, textWrites = 0, pointWrites = 0, textureWrites = 0 }
 local methods = {}
 local function noop() end
 for _, method in ipairs({
@@ -11,8 +11,7 @@ for _, method in ipairs({
     "RegisterForDrag",
     "RegisterForClicks",
     "SetHighlightTexture",
-    "SetTexture",
-    "SetTexCoord",
+    "SetVertexColor",
     "SetJustifyH",
     "SetHitRectInsets",
     "SetTextColor",
@@ -25,6 +24,13 @@ for _, method in ipairs({
 }) do
     methods[method] = noop
 end
+function methods:SetTexture(value)
+    stats.textureWrites = stats.textureWrites + 1
+    self.image = value
+end
+function methods:GetTexture() return self.image end
+function methods:SetTexCoord(...) self.coords = { ... } end
+function methods:GetTexCoord() return unpack(self.coords or { 0, 0, 0, 1, 1, 0, 1, 1 }) end
 function methods:GetName() return self.name end
 function methods:GetParent() return self.parent end
 function methods:GetChildren()
